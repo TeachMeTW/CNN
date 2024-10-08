@@ -31,7 +31,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: yourdockerhubusername/streamlit-app:latest # Replace with your Docker Hub repo
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
 
       # Step 5: Set up SSH
       - name: Setup SSH
