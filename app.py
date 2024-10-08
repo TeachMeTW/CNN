@@ -1,40 +1,89 @@
-import altair as alt
-import numpy as np
-import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
+# Define the list of words/phrases you want to cycle through
+words = [
+    "Skibidi",
+    "Toilet"
+]
+
+# HTML and CSS for the typewriter effect
+typewriter_html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .typewriter {{
+            font-family: 'Courier New', Courier, monospace;
+            color: #FF6600; /* Nixie Orange */
+            overflow: hidden; /* Ensures the text is not revealed until the animation */
+            border-right: .15em solid #FF6600; /* The typewriter cursor in Nixie Orange */
+            white-space: nowrap; /* Prevents the text from wrapping */
+            margin: 0 auto; /* Centers the element */
+            letter-spacing: .15em; /* Adjusts spacing between letters */
+            font-size: 2em; /* Adjust font size as needed */
+        }}
+        /* Optional: Center the typewriter text */
+        body {{
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }}
+    </style>
+</head>
+<body>
+
+    <div class="typewriter" id="typewriter"></div>
+
+    <script>
+        const words = {words};
+        let currentWordIndex = 0;
+        let currentCharIndex = 0;
+        let isDeleting = false;
+        const typingSpeed = 150; // milliseconds
+        const deletingSpeed = 100;
+        const pauseBetweenWords = 1500;
+
+        const typewriterElement = document.getElementById('typewriter');
+
+        function type() {{
+            const currentWord = words[currentWordIndex];
+            if (isDeleting) {{
+                typewriterElement.innerHTML = currentWord.substring(0, currentCharIndex--);
+                if (currentCharIndex < 0) {{
+                    isDeleting = false;
+                    currentWordIndex = (currentWordIndex + 1) % words.length;
+                    setTimeout(type, 500);
+                }} else {{
+                    setTimeout(type, deletingSpeed);
+                }}
+            }} else {{
+                typewriterElement.innerHTML = currentWord.substring(0, currentCharIndex++);
+                if (currentCharIndex > currentWord.length) {{
+                    isDeleting = true;
+                    setTimeout(type, pauseBetweenWords);
+                }} else {{
+                    setTimeout(type, typingSpeed);
+                }}
+            }}
+        }}
+
+        // Start the typing effect
+        type();
+    </script>
+
+</body>
+</html>
 """
-# Welcome to Streamlit!
 
-Edit `/streamlit_app.py` to customize this app to your heart's desire :heart:.
-If you have any questions, checkout our [documentation](https://docs.streamlit.io) and [community
-forums](https://discuss.streamlit.io).
+# Render the typewriter HTML in the Streamlit app
+components.html(typewriter_html, height=50)
 
-In the meantime, below is an example of what you can do with just a few lines of code:
-"""
-
-num_points = st.slider("Number of points in spiral", 1, 10000, 1100)
-num_turns = st.slider("Number of turns in spiral", 1, 300, 31)
-
-indices = np.linspace(0, 1, num_points)
-theta = 2 * np.pi * num_turns * indices
-radius = indices
-
-x = radius * np.cos(theta)
-y = radius * np.sin(theta)
-
-df = pd.DataFrame({
-    "x": x,
-    "y": y,
-    "idx": indices,
-    "rand": np.random.randn(num_points),
-})
-
-st.altair_chart(alt.Chart(df, height=700, width=700)
-    .mark_point(filled=True)
-    .encode(
-        x=alt.X("x", axis=None),
-        y=alt.Y("y", axis=None),
-        color=alt.Color("idx", legend=None, scale=alt.Scale()),
-        size=alt.Size("rand", legend=None, scale=alt.Scale(range=[1, 150])),
-    ))
+# Add a space between the typewriter and the image
+st.markdown("---")
+st.image(
+    "https://i.imgur.com/PiVKciH.jpeg",
+    caption="Skibidi Toilet",
+    use_column_width=True
+)
