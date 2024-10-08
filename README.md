@@ -1,6 +1,6 @@
 # CNN
 
-Setup Instructions
+Local Setup Instructions
 
 1. Download Docker
 
@@ -10,10 +10,10 @@ Setup Instructions
 
    - In your project directory, run the following command to build the Docker image:
 
-     docker build -t streamlit .
+     `docker build -t streamlit .`
 
 3. Run the Docker Container
 
    - To run the container and expose it on port 8501, use the following command:
 
-     docker run -p 8501:8501 streamlit
+     `docker run -p 8501:8501 streamlit`
