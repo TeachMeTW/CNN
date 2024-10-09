@@ -25,13 +25,13 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Step 4: Build and push Docker image
+      # Step 4: Build and push Docker image with specific tag
       - name: Build and Push Docker image
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ github.sha }}
 
       # Step 5: Set up SSH
       - name: Setup SSH
@@ -39,50 +39,48 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # Step 6: Deploy to EC2 via SSH with Git Pull and Docker Cleanup
+      # Step 6: Deploy to EC2 via SSH with Git Pull, Docker Cleanup, and nginx Restart
       - name: Deploy to EC2
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             # Navigate to the repository directory
             echo "Navigating to repository directory..."
-            cd ~/CNN || { echo "Repository directory not found! Exiting."; exit 1; }
+            cd /home/CNN || { echo "Repository directory not found! Exiting."; exit 1; }
 
             # Pull the latest changes from the repository
             echo "Pulling latest changes from the repository..."
             git pull origin main
 
-            # Identify if port 80 is in use and stop the process
-            echo "Checking if port 80 is in use..."
-            PORT_IN_USE=$(sudo lsof -i :80 -t)
-            if [ -n "$PORT_IN_USE" ]; then
-              echo "Port 80 is in use by PID: $PORT_IN_USE. Attempting to stop the process..."
-              sudo kill -9 $PORT_IN_USE
-              # Alternatively, if it's a known service like nginx, stop it:
-              # sudo systemctl stop nginx
-            else
-              echo "Port 80 is free."
-            fi
-
-            # Stop and remove the existing Docker container if it's running
+            # Stop the existing Docker container if it's running
             echo "Stopping existing Docker container (if any)..."
             docker stop streamlit-container || true
 
-            echo "Removing existing Docker container (if any)..."
+            # Remove the existing Docker container
+            echo "Removing existing Docker container..."
             docker rm streamlit-container || true
 
             # Pull the latest Docker image
             echo "Pulling the latest Docker image..."
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ github.sha }}
 
-            # Run the new Docker container
-            echo "Running the Docker container..."
-            docker run -d --name streamlit-container -p 80:8501 ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
+            # Run the new Docker container on port 8501
+            echo "Running the Docker container on port 8501..."
+            docker run -d --name streamlit-container -p 8501:8501 ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ github.sha }}
+
+            # Health Check
+            echo "Running health checks..."
+            sleep 10
+            curl -f http://localhost:8501 || { echo "Health check failed! Rolling back."; docker stop streamlit-container || true; docker rm streamlit-container || true; docker run -d --name streamlit-container -p 8501:8501 ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:previous-tag; sudo systemctl restart nginx; exit 1; }
+
+            # Restart nginx to ensure it proxies to the new container
+            echo "Restarting nginx..."
+            sudo systemctl restart nginx
 
             # Clean up unused Docker resources
             echo "Cleaning up unused Docker resources..."
-            docker system prune -af --volumes
-            docker image prune -af
-            docker volume prune -f
+            docker system prune -af --volumes >> /var/log/docker-cleanup.log 2>&1
+            docker image prune -af >> /var/log/docker-cleanup.log 2>&1
+            docker volume prune -f >> /var/log/docker-cleanup.log 2>&1
 
             echo "Deployment and cleanup completed successfully."
           EOF
