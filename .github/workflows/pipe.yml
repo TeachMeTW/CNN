@@ -45,7 +45,7 @@ jobs:
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             # Navigate to the repository directory
             echo "Navigating to repository directory..."
-            cd /home/CNN || { echo "Repository directory not found! Exiting."; exit 1; }
+            cd ~/CNN || { echo "Repository directory not found! Exiting."; exit 1; }
 
             # Pull the latest changes from the repository
             echo "Pulling latest changes from the repository..."
