@@ -87,6 +87,7 @@ st.image(
     caption="Skibidi Toilet",
     use_column_width=True
 )
+
 st.markdown("---")
 video_file = open("skibidi.mp4", "rb")
 video_bytes = video_file.read()
