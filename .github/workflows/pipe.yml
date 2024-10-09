@@ -39,7 +39,16 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # Step 6: Deploy to EC2 via SSH
+      # Step 6: Deploy to EC2 via SSH with `git pull`
       - name: Deploy to EC2
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'bash ~/deploy.sh'
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            echo "Navigating to repository directory..."
+            cd ~/CNN || { echo "Repository directory not found! Exiting."; exit 1; }
+
+            echo "Pulling latest changes from the repository..."
+            git pull origin main
+
+            echo "Running the deployment script..."
+            bash ~/deploy.sh
+          EOF
