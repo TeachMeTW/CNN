@@ -18,8 +18,8 @@ st.markdown(
             The application provides an intuitive user interface for monitoring network behavior, 
             offering real-time insights and visualizations of detected anomalies. 
             Users can easily upload network data, trigger analysis, and explore results through interactive dashboards and graphs. 
-            This streamlined workflow aids network administrators in identifying potential issues promptly and taking corrective actions, 
-            minimizing downtime and enhancing overall network performance.
+            This streamlined workflow aids quality assurance engineers in identifying anomalies within their devices. 
+            Allowing for efficient implementation of corrective actions, which minimizes downtime and enhances overall network performance.
         </p>
 
     </div>
