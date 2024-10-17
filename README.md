@@ -1,6 +1,6 @@
 # CNN 
 
-# Ronan Was Here
+# ARYA Was Here
 A Streamlit App
 
 Local Setup Instructions
