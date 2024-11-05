@@ -31,6 +31,7 @@ COPY ./ml/requirements.txt /ml/requirements.txt
 # Upgrade pip and install Python dependencies
 RUN pip install --upgrade pip setuptools wheel
 RUN pip install -r requirements.txt
+RUN pip install -r /ml/requirements.txt
 
 # Copy the rest of the application code
 COPY . .
