@@ -1,35 +1,29 @@
 import streamlit as st
-import streamlit.components.v1 as components
 
+# Set page configuration
+st.set_page_config(layout="wide")
 
+# Title of the app
+st.markdown("<h1 style='text-align: center; background-color: #333; color: white; padding: 10px;'>Data Analysis App Wireframe</h1>", unsafe_allow_html=True)
 
-#sidebar
-st.sidebar.title("Navigation")
-page = st.sidebar.selectbox(
-    "Choose a page:",
-    ("Project Description", "User Guide", "Data")
-)
-st.title("Anamoly Detection Dashboard")
-st.markdown(
-    """
-    <div style='text-align: center;'>
-        <p>
-            This Dashboard is used to detect anomalous data. 
-            The application provides an intuitive user interface for monitoring network behavior, 
-            offering real-time insights and visualizations of detected anomalies. 
-            Users can easily upload network data, trigger analysis, and explore results through interactive dashboards and graphs. 
-            This streamlined workflow aids network administrators in identifying potential issues promptly and taking corrective actions, 
-            minimizing downtime and enhancing overall network performance.
-        </p>
+# Sidebar
+with st.sidebar:
+    st.markdown("### Sidebar")
+    st.write("- Dashboard Overview")
+    st.write("- Model Selection")
+    st.write("- Data Management")
+    st.write("- Custom Analysis")
+    st.write("- Settings")
 
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-# Add a space between the typewriter and the image
-st.markdown("---")
-st.image(
-    "Cisco_logo.png",
-    caption="Cisco Design",
-    use_column_width=True)
+# Main sections
+st.markdown("### Key Metrics")
+st.write("Metric Cards Area")
+st.empty()  # Placeholder for future content
 
+st.markdown("### Time-Series Chart")
+st.write("Time-Series Line Chart Placeholder")
+st.empty()  # Placeholder for future content
+
+st.markdown("### Bar Chart")
+st.write("Bar Chart Placeholder")
+st.empty()  # Placeholder for future content
