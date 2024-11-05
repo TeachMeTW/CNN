@@ -13,7 +13,7 @@ with st.sidebar:
     st.write("- Model Selection")
     st.write("- Data Management")
     st.write("- Custom Analysis")
-    st.write("- Settings")
+    st.write("- User Guide")
 
 # Main sections
 st.markdown("### Key Metrics")
