@@ -1,7 +1,7 @@
 # app/Dockerfile
 
 # Use Python 3.10-slim as the base image for better compatibility and smaller image size
-FROM python:3.10-slim
+FROM python:3.11.5
 
 # Set environment variables to prevent Python from writing .pyc files and to buffer outputs
 ENV PYTHONUNBUFFERED=1
