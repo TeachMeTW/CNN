@@ -26,6 +26,7 @@ WORKDIR /app
 RUN mkdir -p /ml
 # Copy the requirements file into the container first for better caching
 COPY requirements.txt .
+COPY ./ml/requirements.txt /ml/requirements.txt
 
 # Upgrade pip and install Python dependencies
 RUN pip install --upgrade pip setuptools wheel
