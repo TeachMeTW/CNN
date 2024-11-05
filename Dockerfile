@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Set the working directory in the container
 WORKDIR /app
-
+RUN mkdir -p /ml
 # Copy the requirements file into the container first for better caching
 COPY requirements.txt .
 
