@@ -1,7 +1,8 @@
 # app/Dockerfile
 
 # Use Python 3.10-slim as the base image for better compatibility and smaller image size
-FROM python:3.10-slim
+# Update to 3.11.5 for ML training 
+FROM python:3.11.5
 
 # Set environment variables to prevent Python from writing .pyc files and to buffer outputs
 ENV PYTHONUNBUFFERED=1
@@ -24,12 +25,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set the working directory in the container
 WORKDIR /app
 
+RUN mkdir -p /ml
+
 # Copy the requirements file into the container first for better caching
 COPY requirements.txt .
+COPY ./ml/requirements.txt ./ml/requirements.txt
 
-# Upgrade pip and install Python dependencies
-RUN pip install --upgrade pip setuptools wheel
-RUN pip install -r requirements.txt
+# Upgrade pip and install Python dependencies 
+RUN pip3 install --upgrade pip setuptools wheel
+RUN pip3 install -r requirements.txt
+# Install the ml requirements
+RUN pip3 install -r ./ml/requirements.txt
 
 # Copy the rest of the application code
 COPY . .
