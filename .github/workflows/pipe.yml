@@ -78,9 +78,9 @@ jobs:
 
             # Clean up unused Docker resources
             echo "Cleaning up unused Docker resources..."
-            docker system prune -af --volumes >> /var/log/docker-cleanup.log 2>&1
-            docker image prune -af >> /var/log/docker-cleanup.log 2>&1
-            docker volume prune -f >> /var/log/docker-cleanup.log 2>&1
+            sudo docker system prune -af --volumes >> /var/log/docker-cleanup.log 2>&1
+            sudo docker image prune -af >> /var/log/docker-cleanup.log 2>&1
+            sudo docker volume prune -f >> /var/log/docker-cleanup.log 2>&1
 
             echo "Deployment and cleanup completed successfully."
           EOF

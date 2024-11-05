@@ -1,2 +1,9 @@
 [server]
+# Enable CORS to false if accessing from different origin
+enableCORS = false
+# Allow Streamlit to listen on all network interfaces
+address = "0.0.0.0"
+# Automatically reload on code changes
 runOnSave = true
+
+[theme]
