@@ -51,9 +51,14 @@ jobs:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       # Step 6: Deploy to EC2 via SSH with Git Pull, Docker Cleanup, and nginx Restart
+            # Step 6: Deploy to EC2 via SSH with Git Pull, Docker Cleanup, and nginx Restart
       - name: Deploy to EC2
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            echo "Cleaning up unused Docker resources before deployment..."
+            sudo docker system prune -af --volumes || true
+            sudo docker image prune -af --filter="dangling=true" || true
+
             echo "Navigating to repository directory..."
             cd ~/CNN || { echo "Repository directory not found! Exiting."; exit 1; }
 
@@ -82,7 +87,7 @@ jobs:
             echo "Restarting nginx..."
             sudo systemctl restart nginx
 
-            echo "Cleaning up unused Docker resources..."
+            echo "Final cleanup of unused Docker resources..."
             sudo docker system prune -af --volumes >> /var/log/docker-cleanup.log 2>&1
             sudo docker image prune -af --filter="dangling=true" >> /var/log/docker-cleanup.log 2>&1
 
