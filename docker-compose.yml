@@ -1,14 +1,36 @@
-# docker-compose.yml
 version: "3.8"
 
 services:
   streamlit:
     build: .
     ports:
-      - "8501:8501"
+      - "${STREAMLIT_PORT}:${STREAMLIT_PORT}"
     volumes:
       - .:/app
     environment:
-      - PYTHONUNBUFFERED=1
-      - PYTHONDONTWRITEBYTECODE=1
-    command: streamlit run Data_Analysis_App_Wireframe.py --server.port=8501 --server.address=0.0.0.0
+      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
+      - PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE}
+      - MONGO_URI=${MONGO_URI}
+      - STREAMLIT_SERVER_RUN_ON_SAVE=true
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_ENABLE_CORS=false
+
+    depends_on:
+      - mongo
+    command: streamlit run Data_Analysis_App_Wireframe.py --server.port=${STREAMLIT_PORT} --server.address=${STREAMLIT_ADDRESS}
+
+  mongo:
+    image: mongo:${MONGO_VERSION}
+    container_name: ${MONGO_CONTAINER_NAME}
+    ports:
+      - "${MONGO_PORT}:${MONGO_PORT}"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_INITDB_DATABASE=${MONGO_INITDB_DATABASE}
+    volumes:
+      - mongo_data:/data/db # Use fixed volume name
+
+volumes:
+  mongo_data: # Define fixed volume name

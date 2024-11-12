@@ -246,7 +246,6 @@ tensorboardX==2.6.2.2
 tensorflow==2.15.0
 tensorflow-estimator==2.15.0
 tensorflow-io-gcs-filesystem==0.34.0
-tensorflow-macos==2.15.0; sys_platform == 'darwin'
 termcolor==2.3.0
 terminado==0.17.1
 threadpoolctl==3.2.0
@@ -271,7 +270,7 @@ umap-learn==0.5.5
 uri-template==1.3.0
 urllib3==1.26.16
 utilsforecast==0.1.9
-watchdog>=2.1.5,<5
+watchdog<5
 wcwidth==0.2.6
 webcolors==1.13
 webencodings==0.5.1
@@ -291,4 +290,3 @@ yarl==1.9.4
 ypy-websocket==0.8.4
 zict==3.0.0
 zipp==3.17.0
-    
