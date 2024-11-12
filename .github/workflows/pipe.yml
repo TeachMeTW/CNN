@@ -55,13 +55,12 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             set -e
-
             echo "Starting deployment on EC2..."
-
+            
             # Function to check and stop containers
             stop_containers() {
               local containers
-              containers=$(docker ps -aq)
+              containers=$(sudo docker ps -aq)
               if [ -n "$containers" ]; then
                 echo "Stopping containers: $containers"
                 sudo docker stop $containers
@@ -69,11 +68,11 @@ jobs:
                 echo "No containers to stop."
               fi
             }
-
+            
             # Function to check and remove containers
             remove_containers() {
               local containers
-              containers=$(docker ps -aq)
+              containers=$(sudo docker ps -aq)
               if [ -n "$containers" ]; then
                 echo "Removing containers: $containers"
                 sudo docker rm $containers
@@ -81,11 +80,11 @@ jobs:
                 echo "No containers to remove."
               fi
             }
-
+            
             # Function to remove all images
             remove_images() {
               local images
-              images=$(docker images -q)
+              images=$(sudo docker images -q)
               if [ -n "$images" ]; then
                 echo "Removing images: $images"
                 sudo docker rmi $images || true
@@ -93,44 +92,47 @@ jobs:
                 echo "No images to remove."
               fi
             }
-
+            
             echo "Deep cleaning unused Docker resources before deployment..."
             stop_containers
             remove_containers
             remove_images
-            sudo docker volume prune -f || true
-            sudo docker system prune -af --volumes || true
-
+            sudo docker volume prune -f | sudo tee -a /var/log/docker-cleanup.log >/dev/null || true
+            sudo docker system prune -af --volumes | sudo tee -a /var/log/docker-cleanup.log >/dev/null || true
+            echo "Docker cleanup completed."
+            
             echo "Navigating to repository directory..."
             cd ~/CNN || { echo "Repository directory not found! Exiting."; exit 1; }
-
+            
             echo "Pulling latest changes from the repository..."
             git pull origin main
-
+            
             echo "Pulling the latest Docker image..."
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ github.sha }}
-
+            sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ github.sha }}
+            
             echo "Running the Docker container on port 8501..."
-            docker run -d --name streamlit-container -p 8501:8501 ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ github.sha }}
-
+            sudo docker run -d --name streamlit-container -p 8501:8501 ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ github.sha }}
+            
             echo "Running health checks..."
             sleep 10
             if ! curl -f http://localhost:8501; then
               echo "Health check failed! Rolling back to previous Docker image..."
-              docker stop streamlit-container || true
-              docker rm streamlit-container || true
-              docker pull ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
-              docker run -d --name streamlit-container -p 8501:8501 ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
+              sudo docker stop streamlit-container || true
+              sudo docker rm streamlit-container || true
+              sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
+              sudo docker run -d --name streamlit-container -p 8501:8501 ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
               sudo systemctl restart nginx
               exit 1
             fi
-
+            
+            echo "Health check passed."
+            
             echo "Restarting nginx..."
             sudo systemctl restart nginx
-
+            
             echo "Final cleanup of unused Docker resources..."
-            sudo docker system prune -af --volumes >> /var/log/docker-cleanup.log 2>&1
-            sudo docker image prune -af --filter="dangling=true" >> /var/log/docker-cleanup.log 2>&1
-
+            sudo bash -c 'docker system prune -af --volumes >> /var/log/docker-cleanup.log 2>&1'
+            sudo bash -c 'docker image prune -af --filter="dangling=true" >> /var/log/docker-cleanup.log 2>&1'
+            
             echo "Deployment and cleanup completed successfully."
           EOF
