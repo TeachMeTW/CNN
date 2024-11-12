@@ -57,8 +57,4 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy the application code
 COPY . .
 
-# Install runtime Python dependencies if any (optional)
-# RUN pip install --no-cache-dir -r requirements.txt
-
-# Define the default command to run the Streamlit application
-ENTRYPOINT ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+ENTRYPOINT ["streamlit", "run", "Data_Analysis_App_Wireframe.py", "--server.port=8501", "--server.address=0.0.0.0"]
