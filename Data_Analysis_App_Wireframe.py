@@ -6,15 +6,6 @@ st.set_page_config(layout="wide")
 # Title of the app
 st.markdown("<h1 style='text-align: center; background-color: #333; color: white; padding: 10px;'>Data Analysis App Wireframe</h1>", unsafe_allow_html=True)
 
-# Sidebar
-with st.sidebar:
-    st.markdown("### Sidebar")
-    st.write("- Dashboard Overview")
-    st.write("- Model Selection")
-    st.write("- Data Management")
-    st.write("- Custom Analysis")
-    st.write("- User Guide")
-
 # Main sections
 st.markdown("### Key Metrics")
 st.write("Metric Cards Area")
