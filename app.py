@@ -9,7 +9,7 @@ page = st.sidebar.selectbox(
     "Choose a page:",
     ("Project Description", "User Guide", "Data")
 )
-st.title("Anamoly Detection Dashboard")
+st.title("Anomaly Detection Dashboard")
 st.markdown(
     """
     <div style='text-align: center;'>
