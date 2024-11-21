@@ -1,7 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
-import pandas as pd
-import pygwalker as pyg 
 
 
 #sidebar
@@ -38,20 +35,3 @@ st.image(
     use_column_width=True)
  
 
-if page == "PygWalker Visualization":
-    st.header('Data Visualization with Pygwalker')
-    
-    df = pd.read_csv("/Users/aryasastry/Downloads/CalPoly_example_files 2/iot_telemetry.csv")
-    # pyg.walk(df) --> does not work because pygwalker not natively compatible with streamlit 
-
-    # Render Pygwalker visualization as HTML
-    walker_html = pyg.walk(df).to_html()
-    components.html(walker_html, height=600, scrolling=True)
-
-
-    # # Title for the Streamlit app
-    # st.title("PyGWalker with Streamlit - Interactive Example")
-
-    # # Display the dataset
-    # st.write("### Sample Data")
-    # st.dataframe(df)
