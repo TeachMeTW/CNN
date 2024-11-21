@@ -27,12 +27,12 @@ from pygwalker.api.streamlit import StreamlitRenderer
 
 st.header('Data Visualization with Pygwalker')
 
-df = pd.read_csv('./data/iot_telemetry.csv')
+df = pd.read_csv('./data/food.csv')
 # pyg.walk(df) --> does not work because pygwalker not natively compatible with streamlit 
 
 # Render Pygwalker visualization as HTML
 walker_html = pyg.walk(df).to_html()
-components.html(walker_html, height=600, scrolling=True)
+components.html(walker_html, width=800, height=600, scrolling=True)
 
 # st.set_page_config(page_title="PyGWalker in Streamlit - Data Analysis", layout="wide")
 # st.title("PyGWalker in Streamlit Demo")
