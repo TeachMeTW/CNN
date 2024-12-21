@@ -47,4 +47,4 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 COPY . .
 
-ENTRYPOINT ["streamlit", "run", "Data_Analysis_App_Wireframe.py", "--server.port=8501", "--server.address=0.0.0.0"]
+ENTRYPOINT ["streamlit", "run", "Overview.py", "--server.port=8501", "--server.address=0.0.0.0"]
