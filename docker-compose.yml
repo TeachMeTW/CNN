@@ -15,7 +15,6 @@ services:
       - STREAMLIT_SERVER_PORT=8501
       - STREAMLIT_SERVER_ADDRESS=0.0.0.0
       - STREAMLIT_SERVER_ENABLE_CORS=false
-
     depends_on:
       - mongo
     command: streamlit run Data_Analysis_App_Wireframe.py --server.port=${STREAMLIT_PORT} --server.address=${STREAMLIT_ADDRESS}
@@ -30,7 +29,7 @@ services:
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
       - MONGO_INITDB_DATABASE=${MONGO_INITDB_DATABASE}
     volumes:
-      - mongo_data:/data/db # Use fixed volume name
+      - mongo_data:/data/db
 
 volumes:
-  mongo_data: # Define fixed volume name
+  mongo_data:
