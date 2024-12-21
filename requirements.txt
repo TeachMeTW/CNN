@@ -293,3 +293,4 @@ zict==3.0.0
 zipp==3.17.0
 pygwalker==0.4.9.12
 pymongo
+python-dotenv
