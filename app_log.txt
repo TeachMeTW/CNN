@@ -35,3 +35,20 @@
 2024-12-21 20:29:58,419:INFO:Dataframe created with shape: (200, 6)
 2024-12-21 20:29:58,583:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
 2024-12-21 20:29:58,586:INFO:App execution completed successfully.
+2024-12-23 02:29:28,147:INFO:Streamlit app started.
+2024-12-23 02:29:28,152:INFO:Dataframe created with shape: (200, 6)
+2024-12-23 02:29:28,281:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-23 02:29:28,284:INFO:App execution completed successfully.
+2024-12-23 02:29:30,414:INFO:generated new fontManager
+2024-12-23 02:32:33,697:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 02:34:51,593:INFO:Model Loss: 0.04299144446849823
+Optimized Hyper-Parameters: {'latent_dim': 2, 'reduction_modulo': 1, 'dropout_percentage': 0.02, 'epochs': 1000, 'batch_size': 1500, 'learning_rate': 1e-05}
+2024-12-23 03:15:47,963:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 03:15:52,221:INFO:Model Loss: 0.11532827466726303
+Optimized Hyper-Parameters: {'latent_dim': 2, 'reduction_modulo': 2, 'dropout_percentage': 0.24000000000000002, 'epochs': 1500, 'batch_size': 2000, 'learning_rate': 0.01}
+2024-12-23 04:23:40,823:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 04:24:51,684:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 05:01:38,386:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 05:03:20,402:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 05:06:20,972:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 05:19:35,217:INFO:Train shape: (146640, 7); Validation shape: (62846, 7);
