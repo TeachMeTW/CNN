@@ -91,7 +91,7 @@ def main():
     st.title("Data Ingestion & Exploration")
 
     # Use MONGO_URI from .env or fallback to default
-    mongo_uri = os.getenv("MONGO_URI", "mongodb://admin:poop1234@mongo:27017/mydatabase?authSource=admin")
+    mongo_uri = os.getenv("MONGO_URI")
     default_db_name = "mydatabase"
 
     st.write(

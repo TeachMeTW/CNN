@@ -52,3 +52,6 @@ Optimized Hyper-Parameters: {'latent_dim': 2, 'reduction_modulo': 2, 'dropout_pe
 2024-12-23 05:03:20,402:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
 2024-12-23 05:06:20,972:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
 2024-12-23 05:19:35,217:INFO:Train shape: (146640, 7); Validation shape: (62846, 7);
+2024-12-26 20:26:05,201:INFO:Streamlit app started.
+2024-12-26 20:26:05,208:INFO:Dataframe created with shape: (200, 6)
+2024-12-26 20:27:04,126:INFO:generated new fontManager
