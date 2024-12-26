@@ -1,0 +1,57 @@
+2024-12-21 04:33:27,922:INFO:Streamlit app started.
+2024-12-21 04:33:27,927:INFO:Dataframe created with shape: (200, 6)
+2024-12-21 04:33:28,076:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-21 04:33:28,079:INFO:App execution completed successfully.
+2024-12-21 04:33:31,121:INFO:Streamlit app started.
+2024-12-21 04:33:31,126:INFO:Dataframe created with shape: (200, 6)
+2024-12-21 04:33:31,148:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-21 04:33:31,151:INFO:App execution completed successfully.
+2024-12-21 04:33:44,814:INFO:Streamlit app started.
+2024-12-21 04:33:44,820:INFO:Dataframe created with shape: (200, 6)
+2024-12-21 04:33:44,842:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-21 04:33:44,846:INFO:App execution completed successfully.
+2024-12-21 20:01:31,858:INFO:Streamlit app started.
+2024-12-21 20:01:31,870:INFO:Dataframe created with shape: (200, 6)
+2024-12-21 20:01:31,914:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-21 20:01:31,918:INFO:App execution completed successfully.
+2024-12-21 20:03:03,837:INFO:Streamlit app started.
+2024-12-21 20:03:03,837:INFO:Streamlit app started.
+2024-12-21 20:03:03,873:INFO:Dataframe created with shape: (200, 6)
+2024-12-21 20:03:04,017:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-21 20:03:04,021:INFO:App execution completed successfully.
+2024-12-21 20:03:10,768:INFO:Streamlit app started.
+2024-12-21 20:03:10,771:INFO:Dataframe created with shape: (200, 6)
+2024-12-21 20:03:10,797:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-21 20:03:10,801:INFO:App execution completed successfully.
+2024-12-21 20:05:31,437:INFO:Streamlit app started.
+2024-12-21 20:05:31,441:INFO:Dataframe created with shape: (200, 6)
+2024-12-21 20:05:31,465:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-21 20:05:31,469:INFO:App execution completed successfully.
+2024-12-21 20:05:32,975:INFO:Streamlit app started.
+2024-12-21 20:05:32,980:INFO:Dataframe created with shape: (200, 6)
+2024-12-21 20:05:33,003:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-21 20:05:33,008:INFO:App execution completed successfully.
+2024-12-21 20:29:58,415:INFO:Streamlit app started.
+2024-12-21 20:29:58,419:INFO:Dataframe created with shape: (200, 6)
+2024-12-21 20:29:58,583:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-21 20:29:58,586:INFO:App execution completed successfully.
+2024-12-23 02:29:28,147:INFO:Streamlit app started.
+2024-12-23 02:29:28,152:INFO:Dataframe created with shape: (200, 6)
+2024-12-23 02:29:28,281:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-23 02:29:28,284:INFO:App execution completed successfully.
+2024-12-23 02:29:30,414:INFO:generated new fontManager
+2024-12-23 02:32:33,697:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 02:34:51,593:INFO:Model Loss: 0.04299144446849823
+Optimized Hyper-Parameters: {'latent_dim': 2, 'reduction_modulo': 1, 'dropout_percentage': 0.02, 'epochs': 1000, 'batch_size': 1500, 'learning_rate': 1e-05}
+2024-12-23 03:15:47,963:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 03:15:52,221:INFO:Model Loss: 0.11532827466726303
+Optimized Hyper-Parameters: {'latent_dim': 2, 'reduction_modulo': 2, 'dropout_percentage': 0.24000000000000002, 'epochs': 1500, 'batch_size': 2000, 'learning_rate': 0.01}
+2024-12-23 04:23:40,823:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 04:24:51,684:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 05:01:38,386:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 05:03:20,402:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 05:06:20,972:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 05:19:35,217:INFO:Train shape: (146640, 7); Validation shape: (62846, 7);
+2024-12-26 20:26:05,201:INFO:Streamlit app started.
+2024-12-26 20:26:05,208:INFO:Dataframe created with shape: (200, 6)
+2024-12-26 20:27:04,126:INFO:generated new fontManager
