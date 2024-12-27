@@ -76,7 +76,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      
+      # -------------------------------------------------------------
+      # (6) Tag and Push "latest" (only if needed)
+      # -------------------------------------------------------------
       - name: Tag and Push "latest"
         if: steps.docker-check.outputs.build_needed == 'true'
         run: |
@@ -84,8 +86,9 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
 
+
   ########################################################################
-  # Job 2: Deploy to Amazon Linux (EC2) via SSH
+  # Job 2: Deploy Docker Container on Amazon Linux (EC2) via SSH
   ########################################################################
   deploy:
     runs-on: ubuntu-latest
@@ -164,7 +167,6 @@ jobs:
             cd $REPO_DIR || { echo "Repository directory not found! Exiting."; exit 1; }
 
             echo "Pulling latest changes from the repository..."
-            # If this fails (e.g., read-only or missing perms), you can remove or adjust it
             git pull origin main || echo "Could not pull from repo. Check permissions."
 
             echo "Pulling the Docker image..."
@@ -188,15 +190,16 @@ jobs:
               sudo docker rm streamlit-container || true
 
               # Pull & run your fallback "latest" tag
-              sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest || true
-              sudo docker run -d --name streamlit-container -p $PORT:8501 ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
+              sudo docker pull $DOCKER_IMAGE || true
+              sudo docker run -d --name streamlit-container -p $PORT:8501 $DOCKER_IMAGE
 
               # Restart Nginx (or any other services)
               sudo systemctl restart nginx || true
               exit 1
             fi
 
-            echo "Health check passed! Restarting nginx..."
+            echo "Health check passed! Container is up and running."
+            # You could also restart Nginx here if desired:
             sudo systemctl restart nginx || true
 
             #################################################################
@@ -206,4 +209,59 @@ jobs:
             sudo docker image prune -f || true
 
             echo "Deployment completed successfully."
+          EOF
+
+
+  ########################################################################
+  # Job 3: Configure Nginx as Reverse Proxy for cisconeural.net
+  ########################################################################
+  configure-nginx:
+    runs-on: ubuntu-latest
+    needs: deploy   # Runs AFTER the 'deploy' job completes
+
+    steps:
+      # -------------------------------------------------------------
+      # (1) SSH Setup
+      # -------------------------------------------------------------
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # -------------------------------------------------------------
+      # (2) SSH into EC2 and configure Nginx
+      # -------------------------------------------------------------
+      - name: Configure Nginx on EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            set -e
+            set -x
+
+            echo "Configuring Nginx on Amazon Linux EC2..."
+
+            # 1. Install Nginx if not installed
+            sudo yum update -y
+            sudo yum install -y nginx
+            sudo systemctl enable nginx
+
+            # 2. Create/Update an Nginx config to reverse-proxy port 80 -> 8501
+            #    Replace 'cisconeural.net' with your actual domain if needed.
+            cat <<'NGINXCONF' | sudo tee /etc/nginx/conf.d/streamlit.conf
+server {
+    listen 80;
+    server_name cisconeural.net;
+
+    location / {
+        proxy_pass http://127.0.0.1:8501;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+NGINXCONF
+
+            # 3. Restart Nginx to apply changes
+            sudo systemctl restart nginx
+
+            echo "Nginx configured successfully. You can now access the app at http://cisconeural.net"
           EOF
