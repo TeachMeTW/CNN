@@ -25,28 +25,27 @@ jobs:
       # -------------------------------------------------------------
       - name: Check if Docker build is needed
         id: docker-check
+        shell: bash
         run: |
-          previous_commit="${{ github.event.before }}"
-          current_commit="${{ github.sha }}"
-
-          # If "before" is all zeroes, there's no previous commit (new branch/initial commit).
+          previous_commit=${{ github.event.before }}
+          current_commit=${{ github.sha }}
+          
+          # If "before" is all zeroes, there's no previous commit (new branch/initial commit)
           if [[ "$previous_commit" == "0000000000000000000000000000000000000000" ]]; then
             echo "No previous commit found (new branch or initial commit). Forcing build."
-            build_needed="true"
+            echo "build_needed=true" >> $GITHUB_OUTPUT
           else
             echo "Comparing changes from $previous_commit to $current_commit"
-            changed_files=$(git diff --name-only "$previous_commit" "$current_commit" || true)
-            build_needed="false"
-
-            for file in $changed_files; do
-              if [ "$file" = "Dockerfile" ] || [ "$file" = "requirements.txt" ]; then
-                build_needed="true"
-                break
-              fi
-            done
+            
+            # Use git diff to check for changes in specific files
+            if git diff --name-only $previous_commit $current_commit | grep -q -E '^(Dockerfile|requirements\.txt)$'; then
+              echo "Changes detected in Dockerfile or requirements.txt"
+              echo "build_needed=true" >> $GITHUB_OUTPUT
+            else
+              echo "No changes detected in Dockerfile or requirements.txt"
+              echo "build_needed=false" >> $GITHUB_OUTPUT
+            fi
           fi
-
-          echo "build_needed=$build_needed" >> "$GITHUB_OUTPUT"
 
       # -------------------------------------------------------------
       # (3) Set up Docker Buildx (for caching + multi-platform if needed)
