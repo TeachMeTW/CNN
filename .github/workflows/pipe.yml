@@ -27,6 +27,9 @@ jobs:
         id: docker-check
         shell: bash
         run: |
+          # Fetch all history and tags
+          git fetch --prune --unshallow
+          
           previous_commit=${{ github.event.before }}
           current_commit=${{ github.sha }}
           
