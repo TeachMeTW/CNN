@@ -74,20 +74,9 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ github.sha }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      # -------------------------------------------------------------
-      # (6) Tag and Push "latest" (only if needed)
-      # -------------------------------------------------------------
-      - name: Tag and Push "latest"
-        if: steps.docker-check.outputs.build_needed == 'true'
-        run: |
-          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ github.sha }} \
-            ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
-
 
   ########################################################################
   # Job 2: Deploy Docker Container on Amazon Linux (EC2) via SSH
