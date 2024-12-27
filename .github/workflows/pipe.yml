@@ -76,15 +76,13 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      #
-      # (Optional) If you want to also set a "latest" tag when building:
-      #
-      # - name: Tag and Push "latest"
-      #   if: steps.docker-check.outputs.build_needed == 'true'
-      #   run: |
-      #     docker tag ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ github.sha }} \
-      #       ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
-      #     docker push ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
+      
+      - name: Tag and Push "latest"
+        if: steps.docker-check.outputs.build_needed == 'true'
+        run: |
+          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ github.sha }} \
+            ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
 
   ########################################################################
   # Job 2: Deploy to Amazon Linux (EC2) via SSH
@@ -154,7 +152,7 @@ jobs:
             # E. Pull your code locally (if needed) & pull Docker image
             #################################################################
             REPO_DIR=~/CNN
-            DOCKER_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ github.sha }}
+            DOCKER_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
             PORT=8501
 
             echo "Navigating to repository directory..."
