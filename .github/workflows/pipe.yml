@@ -64,44 +64,31 @@ jobs:
   deploy:
     name: Deploy to Amazon Linux EC2
     runs-on: ubuntu-latest
-    needs: build-and-push  # Ensures Deploy only runs after Build & Push completes
+    needs: build-and-push
 
     steps:
-      # ----------------------------------------
-      # Step 5: Set up SSH
-      # ----------------------------------------
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.7.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # ----------------------------------------
-      # Step 6: Deploy to EC2
-      # ----------------------------------------
       - name: Deploy to EC2
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            # Exit immediately if a command exits with a non-zero status.
             set -e
-            # Enable verbose logging for better troubleshooting
             set -x
-
+            
             echo "Starting deployment on Amazon Linux EC2..."
-
-            # ------------------------------------------------------
-            # 1. Update & install Docker on Amazon Linux
-            # ------------------------------------------------------
+            
+            # 1. Update & install Docker via yum
             sudo yum update -y
-            # Enable extras (if needed) for Docker
-            sudo amazon-linux-extras install docker -y
-            # Start Docker service
-            sudo service docker start
-            # Ensure Docker runs on reboot (Amazon Linux 2)
+            sudo yum install -y docker
+            
+            # 2. Start & enable Docker
+            sudo systemctl start docker
             sudo systemctl enable docker
-
-            # ------------------------------------------------------
-            # 2. Perform Docker cleanup
-            # ------------------------------------------------------
+            
+            # 3. Perform Docker cleanup
             echo "Stopping and removing all existing containers..."
             existing_containers=$(sudo docker ps -aq)
             if [ -n "$existing_containers" ]; then
@@ -120,9 +107,7 @@ jobs:
             sudo docker system prune -af --volumes || true
             sudo docker image prune -af --filter="dangling=true" || true
 
-            # ------------------------------------------------------
-            # 3. Pull latest code (if needed) and latest Docker image
-            # ------------------------------------------------------
+            # 4. Pull your application repo (if needed)
             REPO_DIR=~/CNN
             DOCKER_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ github.sha }}
             PORT=8501
@@ -133,20 +118,17 @@ jobs:
             echo "Pulling latest changes from the repository..."
             git pull origin main
 
+            # 5. Pull & run the Docker container
             echo "Pulling the Docker image..."
             sudo docker pull $DOCKER_IMAGE
 
-            # ------------------------------------------------------
-            # 4. Run the new container & health check
-            # ------------------------------------------------------
             echo "Running the Docker container on port $PORT..."
             sudo docker run -d --name streamlit-container -p $PORT:8501 $DOCKER_IMAGE
 
-            echo "Waiting for container to initialize..."
+            # 6. Health check & rollback if necessary
             sleep 10
-            echo "Performing health check..."
             if ! curl -f http://localhost:$PORT; then
-              echo "Health check failed! Rolling back to latest known-good image..."
+              echo "Health check failed! Rolling back..."
               sudo docker stop streamlit-container || true
               sudo docker rm streamlit-container || true
               sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
@@ -158,11 +140,10 @@ jobs:
             echo "Health check passed. Restarting nginx..."
             sudo systemctl restart nginx
 
-            # ------------------------------------------------------
-            # 5. Final Docker cleanup
-            # ------------------------------------------------------
+            # 7. Final Docker cleanup
             sudo docker system prune -af --volumes || true
             sudo docker image prune -af --filter="dangling=true" || true
 
-            echo "Deployment and cleanup completed successfully."
+            echo "Deployment completed successfully."
           EOF
+
