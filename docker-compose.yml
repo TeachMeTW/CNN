@@ -17,7 +17,7 @@ services:
       - STREAMLIT_SERVER_ENABLE_CORS=false
     depends_on:
       - mongo
-    command: streamlit run Data_Analysis_App_Wireframe.py --server.port=${STREAMLIT_PORT} --server.address=${STREAMLIT_ADDRESS}
+    command: streamlit run Overview.py --server.port=${STREAMLIT_PORT} --server.address=${STREAMLIT_ADDRESS}
 
   mongo:
     image: mongo:${MONGO_VERSION}
