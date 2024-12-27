@@ -141,4 +141,4 @@ jobs:
             } | sudo tee -a \$LOG_FILE >/dev/null || echo "Final Docker cleanup encountered an issue." | sudo tee -a \$LOG_FILE
       
             echo "Deployment and cleanup completed successfully."
-EOF
+            EOF
