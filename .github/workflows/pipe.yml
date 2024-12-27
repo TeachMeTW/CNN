@@ -6,89 +6,119 @@ on:
   workflow_dispatch:
 
 jobs:
-  ##############################################
-  # Job 1: Build & Push Docker Image
-  ##############################################
+  ########################################################################
+  # Job 1: Build & Push Docker Image (Conditional)
+  ########################################################################
   build-and-push:
-    name: Build & Push Docker Image
     runs-on: ubuntu-latest
 
     steps:
-      # ----------------------------------------
-      # Step 0: Free up disk space on GitHub runner
-      # ----------------------------------------
-      - name: Free up Disk Space on GitHub Runner
-        run: |
-          echo "Cleaning up unused Docker resources..."
-          sudo docker system prune -af --volumes || true
-          echo "Removing temporary files and caches..."
-          sudo rm -rf /tmp/* $HOME/.cache/* $HOME/.npm $HOME/.pip $HOME/.cargo || true
-          echo "Unmounting /mnt to free space..."
-          sudo umount /mnt || true
-          sudo rm -rf /mnt || true
-
-      # ----------------------------------------
-      # Step 1: Checkout the repository
-      # ----------------------------------------
-      - name: Checkout Code
+      # -------------------------------------------------------------
+      # 1. Check out the repo
+      # -------------------------------------------------------------
+      - name: Check out code
         uses: actions/checkout@v3
 
-      # ----------------------------------------
-      # Step 2: Set up Docker Buildx
-      # ----------------------------------------
+      # -------------------------------------------------------------
+      # 2. Determine if Docker build is needed
+      #    (only build if Dockerfile or requirements.txt changed)
+      # -------------------------------------------------------------
+      - name: Check if Docker build is needed
+        id: docker-check
+        run: |
+          # Capture files changed in this push (compare current HEAD to previous commit)
+          # For merges or special commit histories, you may need a different diff range.
+          changed_files=$(git diff --name-only HEAD^ HEAD)
+
+          # Default to "no build"
+          build_needed="false"
+
+          # Loop through changed files
+          for file in $changed_files; do
+            if [ "$file" = "Dockerfile" ] || [ "$file" = "requirements.txt" ]; then
+              build_needed="true"
+              break
+            fi
+          done
+
+          echo "build_needed=$build_needed" >> "$GITHUB_OUTPUT"
+
+      # -------------------------------------------------------------
+      # 3. Set up Docker Buildx (for caching + multi-platform if needed)
+      # -------------------------------------------------------------
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      # ----------------------------------------
-      # Step 3: Log in to Docker Hub
-      # ----------------------------------------
+      # -------------------------------------------------------------
+      # 4. Log in to Docker Hub
+      # -------------------------------------------------------------
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # ----------------------------------------
-      # Step 4: Build and push Docker image
-      # ----------------------------------------
+      # -------------------------------------------------------------
+      # 5. Build & push Docker image with caching (only if needed)
+      # -------------------------------------------------------------
       - name: Build and Push Docker image
+        if: steps.docker-check.outputs.build_needed == 'true'
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ github.sha }}
+          
+          # Enable caching via GitHub Actions
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-  ##############################################
+      # (Optional) If you want to set a "latest" tag, you can do it here:
+      # - name: Tag "latest" and push
+      #   if: steps.docker-check.outputs.build_needed == 'true'
+      #   run: |
+      #     docker tag ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ github.sha }} \
+      #       ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
+      #     docker push ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
+
+  ########################################################################
   # Job 2: Deploy to Amazon Linux (EC2)
-  ##############################################
+  ########################################################################
   deploy:
-    name: Deploy to Amazon Linux EC2
     runs-on: ubuntu-latest
-    needs: build-and-push
+    needs: build-and-push  # Ensure this job runs AFTER build-and-push
 
     steps:
-      - name: Setup SSH
+      # -------------------------------------------------------------
+      # 1. Set up SSH (using your private key)
+      # -------------------------------------------------------------
+      - name: Set up SSH
         uses: webfactory/ssh-agent@v0.7.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Deploy to EC2
+      # -------------------------------------------------------------
+      # 2. SSH into EC2 and deploy
+      # -------------------------------------------------------------
+      - name: Deploy to Amazon Linux EC2
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             set -e
             set -x
-            
+
             echo "Starting deployment on Amazon Linux EC2..."
-            
-            # 1. Update & install Docker via yum
+
+            #################################################################
+            # A. Install and start Docker (if not already installed)
+            #################################################################
             sudo yum update -y
             sudo yum install -y docker
-            
-            # 2. Start & enable Docker
             sudo systemctl start docker
             sudo systemctl enable docker
-            
-            # 3. Perform Docker cleanup
+
+            #################################################################
+            # B. Stop & remove all existing containers
+            #################################################################
             echo "Stopping and removing all existing containers..."
             existing_containers=$(sudo docker ps -aq)
             if [ -n "$existing_containers" ]; then
@@ -96,54 +126,82 @@ jobs:
               sudo docker rm $existing_containers || true
             fi
 
+            #################################################################
+            # C. Remove all existing images (optional; do so carefully)
+            #################################################################
             echo "Removing all existing images..."
             existing_images=$(sudo docker images -q)
             if [ -n "$existing_images" ]; then
               sudo docker rmi -f $existing_images || true
             fi
 
+            #################################################################
+            # D. Prune Docker resources
+            #################################################################
             echo "Pruning Docker resources..."
             sudo docker volume prune -f || true
             sudo docker system prune -af --volumes || true
-            sudo docker image prune -af --filter="dangling=true" || true
 
-            # 4. Pull your application repo (if needed)
+            # Some Docker versions on Amazon Linux 2023 may complain about
+            # the "dangling=true" filter. So keep it simple:
+            sudo docker image prune -f || true
+
+            #################################################################
+            # E. Pull the latest code (if needed) & Docker image
+            #################################################################
             REPO_DIR=~/CNN
             DOCKER_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ github.sha }}
             PORT=8501
 
             echo "Navigating to repository directory..."
+
+            # If you DO need the repo locally, ensure it exists (clone if needed).
+            if [ ! -d "$REPO_DIR" ]; then
+              echo "Repo directory not found, cloning..."
+              git clone https://github.com/YourOrg/YourRepo.git $REPO_DIR
+            fi
             cd $REPO_DIR || { echo "Repository directory not found! Exiting."; exit 1; }
 
             echo "Pulling latest changes from the repository..."
-            git pull origin main
+            git pull origin main || echo "Could not pull from repo. Check permissions."
 
-            # 5. Pull & run the Docker container
             echo "Pulling the Docker image..."
-            sudo docker pull $DOCKER_IMAGE
+            sudo docker pull $DOCKER_IMAGE || true
 
+            #################################################################
+            # F. Run the container and do a health check
+            #################################################################
             echo "Running the Docker container on port $PORT..."
             sudo docker run -d --name streamlit-container -p $PORT:8501 $DOCKER_IMAGE
 
-            # 6. Health check & rollback if necessary
+            echo "Waiting for container to initialize..."
             sleep 10
+
+            echo "Performing health check..."
             if ! curl -f http://localhost:$PORT; then
               echo "Health check failed! Rolling back..."
+
+              # Stop the failing container
               sudo docker stop streamlit-container || true
               sudo docker rm streamlit-container || true
-              sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
+
+              # Pull & run your 'latest' tag as a fallback
+              sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest || true
               sudo docker run -d --name streamlit-container -p $PORT:8501 ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
-              sudo systemctl restart nginx
+
+              # Restart nginx or any other relevant service
+              sudo systemctl restart nginx || true
               exit 1
             fi
 
-            echo "Health check passed. Restarting nginx..."
-            sudo systemctl restart nginx
+            echo "Health check passed! Restarting nginx..."
+            sudo systemctl restart nginx || true
 
-            # 7. Final Docker cleanup
+            #################################################################
+            # G. Final Docker cleanup
+            #################################################################
             sudo docker system prune -af --volumes || true
-            sudo docker image prune -af --filter="dangling=true" || true
+            sudo docker image prune -f || true
 
             echo "Deployment completed successfully."
           EOF
-
