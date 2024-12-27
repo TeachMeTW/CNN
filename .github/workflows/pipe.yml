@@ -2,15 +2,21 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  ##############################################
+  # Job 1: Build & Push Docker Image
+  ##############################################
+  build-and-push:
+    name: Build & Push Docker Image
     runs-on: ubuntu-latest
 
     steps:
-      # Step 0: Free up disk space at the start on GitHub runner
+      # ----------------------------------------
+      # Step 0: Free up disk space on GitHub runner
+      # ----------------------------------------
       - name: Free up Disk Space on GitHub Runner
         run: |
           echo "Cleaning up unused Docker resources..."
@@ -20,22 +26,31 @@ jobs:
           echo "Unmounting /mnt to free space..."
           sudo umount /mnt || true
           sudo rm -rf /mnt || true
+
+      # ----------------------------------------
       # Step 1: Checkout the repository
+      # ----------------------------------------
       - name: Checkout Code
         uses: actions/checkout@v3
 
+      # ----------------------------------------
       # Step 2: Set up Docker Buildx
+      # ----------------------------------------
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
+      # ----------------------------------------
       # Step 3: Log in to Docker Hub
+      # ----------------------------------------
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Step 4: Build and push Docker image with specific tag
+      # ----------------------------------------
+      # Step 4: Build and push Docker image
+      # ----------------------------------------
       - name: Build and Push Docker image
         uses: docker/build-push-action@v4
         with:
@@ -43,96 +58,95 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ github.sha }}
 
+  ##############################################
+  # Job 2: Deploy to Amazon Linux (EC2)
+  ##############################################
+  deploy:
+    name: Deploy to Amazon Linux EC2
+    runs-on: ubuntu-latest
+    needs: build-and-push  # Ensures Deploy only runs after Build & Push completes
+
+    steps:
+      # ----------------------------------------
       # Step 5: Set up SSH
+      # ----------------------------------------
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.7.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # Step 6: Deploy to EC2 via SSH with Git Pull, Docker Cleanup, and nginx Restart
+      # ----------------------------------------
+      # Step 6: Deploy to EC2
+      # ----------------------------------------
       - name: Deploy to EC2
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             # Exit immediately if a command exits with a non-zero status.
             set -e
-      
             # Enable verbose logging for better troubleshooting
             set -x
-      
-            echo "Starting deployment on EC2..."
-      
-            # Define environment variables for flexibility
+
+            echo "Starting deployment on Amazon Linux EC2..."
+
+            # ------------------------------------------------------
+            # 1. Update & install Docker on Amazon Linux
+            # ------------------------------------------------------
+            sudo yum update -y
+            # Enable extras (if needed) for Docker
+            sudo amazon-linux-extras install docker -y
+            # Start Docker service
+            sudo service docker start
+            # Ensure Docker runs on reboot (Amazon Linux 2)
+            sudo systemctl enable docker
+
+            # ------------------------------------------------------
+            # 2. Perform Docker cleanup
+            # ------------------------------------------------------
+            echo "Stopping and removing all existing containers..."
+            existing_containers=$(sudo docker ps -aq)
+            if [ -n "$existing_containers" ]; then
+              sudo docker stop $existing_containers || true
+              sudo docker rm $existing_containers || true
+            fi
+
+            echo "Removing all existing images..."
+            existing_images=$(sudo docker images -q)
+            if [ -n "$existing_images" ]; then
+              sudo docker rmi -f $existing_images || true
+            fi
+
+            echo "Pruning Docker resources..."
+            sudo docker volume prune -f || true
+            sudo docker system prune -af --volumes || true
+            sudo docker image prune -af --filter="dangling=true" || true
+
+            # ------------------------------------------------------
+            # 3. Pull latest code (if needed) and latest Docker image
+            # ------------------------------------------------------
             REPO_DIR=~/CNN
-            LOG_FILE=/var/log/docker-cleanup.log
             DOCKER_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ github.sha }}
             PORT=8501
-      
-            # Function to check and stop containers
-            stop_containers() {
-              local containers
-              containers=$(sudo docker ps -aq)
-              if [ -n "$containers" ]; then
-                echo "Stopping containers: $containers"
-                sudo docker stop $containers
-              else
-                echo "No containers to stop."
-              fi
-            }
-      
-            # Function to check and remove containers
-            remove_containers() {
-              local containers
-              containers=$(sudo docker ps -aq)
-              if [ -n "$containers" ]; then
-                echo "Removing containers: $containers"
-                sudo docker rm $containers
-              else
-                echo "No containers to remove."
-              fi
-            }
-      
-            # Function to remove all images
-            remove_images() {
-              local images
-              images=$(sudo docker images -q)
-              if [ -n "$images" ]; then
-                echo "Removing images: $images"
-                sudo docker rmi $images || true
-              else
-                echo "No images to remove."
-              fi
-            }
-      
-            echo "Deep cleaning unused Docker resources before deployment..."
-            stop_containers
-            remove_containers
-            remove_images
-      
-            # Perform Docker cleanup with graceful error handling
-            {
-              sudo docker volume prune -f
-              sudo docker system prune -af --volumes
-              sudo docker image prune -af --filter="dangling=true"
-            } | sudo tee -a $LOG_FILE >/dev/null || echo "Docker cleanup encountered an issue." | sudo tee -a $LOG_FILE
-      
-            echo "Docker cleanup completed."
-      
+
             echo "Navigating to repository directory..."
             cd $REPO_DIR || { echo "Repository directory not found! Exiting."; exit 1; }
-      
+
             echo "Pulling latest changes from the repository..."
             git pull origin main
-      
-            echo "Pulling the latest Docker image..."
+
+            echo "Pulling the Docker image..."
             sudo docker pull $DOCKER_IMAGE
-      
+
+            # ------------------------------------------------------
+            # 4. Run the new container & health check
+            # ------------------------------------------------------
             echo "Running the Docker container on port $PORT..."
             sudo docker run -d --name streamlit-container -p $PORT:8501 $DOCKER_IMAGE
-      
-            echo "Running health checks..."
+
+            echo "Waiting for container to initialize..."
             sleep 10
+            echo "Performing health check..."
             if ! curl -f http://localhost:$PORT; then
-              echo "Health check failed! Rolling back to previous Docker image..."
+              echo "Health check failed! Rolling back to latest known-good image..."
               sudo docker stop streamlit-container || true
               sudo docker rm streamlit-container || true
               sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
@@ -140,17 +154,15 @@ jobs:
               sudo systemctl restart nginx
               exit 1
             fi
-      
-            echo "Health check passed."
-      
-            echo "Restarting nginx..."
+
+            echo "Health check passed. Restarting nginx..."
             sudo systemctl restart nginx
-      
-            echo "Final cleanup of unused Docker resources..."
-            {
-              sudo docker system prune -af --volumes
-              sudo docker image prune -af --filter="dangling=true"
-            } | sudo tee -a $LOG_FILE >/dev/null || echo "Final Docker cleanup encountered an issue." | sudo tee -a $LOG_FILE
-      
+
+            # ------------------------------------------------------
+            # 5. Final Docker cleanup
+            # ------------------------------------------------------
+            sudo docker system prune -af --volumes || true
+            sudo docker image prune -af --filter="dangling=true" || true
+
             echo "Deployment and cleanup completed successfully."
           EOF
