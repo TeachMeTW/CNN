@@ -20,7 +20,6 @@ jobs:
           echo "Unmounting /mnt to free space..."
           sudo umount /mnt || true
           sudo rm -rf /mnt || true
-
       # Step 1: Checkout the repository
       - name: Checkout Code
         uses: actions/checkout@v3
