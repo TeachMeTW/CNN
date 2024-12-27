@@ -6,10 +6,12 @@ on:
       - main
 
 jobs:
-  cleanup:
+  build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Free up Disk Space
+      # Step 0: Free up disk space at the start on GitHub runner
+      - name: Free up Disk Space on GitHub Runner
         run: |
           echo "Cleaning up unused Docker resources..."
           sudo docker system prune -af --volumes || true
@@ -19,22 +21,22 @@ jobs:
           sudo umount /mnt || true
           sudo rm -rf /mnt || true
 
-  build:
-    needs: cleanup
-    runs-on: ubuntu-latest
-    steps:
+      # Step 1: Checkout the repository
       - name: Checkout Code
         uses: actions/checkout@v3
 
+      # Step 2: Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
+      # Step 3: Log in to Docker Hub
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # Step 4: Build and push Docker image with specific tag
       - name: Build and Push Docker image
         uses: docker/build-push-action@v4
         with:
@@ -42,32 +44,30 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ github.sha }}
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
+      # Step 5: Set up SSH
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.7.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
+      # Step 6: Deploy to EC2 via SSH with Git Pull, Docker Cleanup, and nginx Restart
       - name: Deploy to EC2
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             # Exit immediately if a command exits with a non-zero status.
             set -e
-            
+      
             # Enable verbose logging for better troubleshooting
             set -x
-            
+      
             echo "Starting deployment on EC2..."
-            
+      
             # Define environment variables for flexibility
             REPO_DIR=~/CNN
             LOG_FILE=/var/log/docker-cleanup.log
             DOCKER_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ github.sha }}
             PORT=8501
-            
+      
             # Function to check and stop containers
             stop_containers() {
               local containers
@@ -79,7 +79,7 @@ jobs:
                 echo "No containers to stop."
               fi
             }
-            
+      
             # Function to check and remove containers
             remove_containers() {
               local containers
@@ -91,7 +91,7 @@ jobs:
                 echo "No containers to remove."
               fi
             }
-            
+      
             # Function to remove all images
             remove_images() {
               local images
@@ -103,51 +103,33 @@ jobs:
                 echo "No images to remove."
               fi
             }
-
+      
             echo "Deep cleaning unused Docker resources before deployment..."
             stop_containers
             remove_containers
             remove_images
-            
+      
             # Perform Docker cleanup with graceful error handling
             {
               sudo docker volume prune -f
               sudo docker system prune -af --volumes
               sudo docker image prune -af --filter="dangling=true"
             } | sudo tee -a $LOG_FILE >/dev/null || echo "Docker cleanup encountered an issue." | sudo tee -a $LOG_FILE
-            
+      
             echo "Docker cleanup completed."
-            
+      
             echo "Navigating to repository directory..."
             cd $REPO_DIR || { echo "Repository directory not found! Exiting."; exit 1; }
-            
+      
             echo "Pulling latest changes from the repository..."
             git pull origin main
-            
+      
             echo "Pulling the latest Docker image..."
             sudo docker pull $DOCKER_IMAGE
-            
+      
             echo "Running the Docker container on port $PORT..."
             sudo docker run -d --name streamlit-container -p $PORT:8501 $DOCKER_IMAGE
-
-  health-check:
-    needs: deploy
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.7.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: Perform Health Check and Finalize
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            set -e
-            set -x
-            
-            PORT=8501
-            LOG_FILE=/var/log/docker-cleanup.log
-            
+      
             echo "Running health checks..."
             sleep 10
             if ! curl -f http://localhost:$PORT; then
@@ -159,17 +141,17 @@ jobs:
               sudo systemctl restart nginx
               exit 1
             fi
-            
+      
             echo "Health check passed."
-            
+      
             echo "Restarting nginx..."
             sudo systemctl restart nginx
-            
+      
             echo "Final cleanup of unused Docker resources..."
             {
               sudo docker system prune -af --volumes
               sudo docker image prune -af --filter="dangling=true"
             } | sudo tee -a $LOG_FILE >/dev/null || echo "Final Docker cleanup encountered an issue." | sudo tee -a $LOG_FILE
-            
+      
             echo "Deployment and cleanup completed successfully."
           EOF
