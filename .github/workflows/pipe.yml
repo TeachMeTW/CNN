@@ -227,49 +227,46 @@ jobs:
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             set -e
             set -x
-
             echo "Configuring Nginx on Amazon Linux EC2..."
-
+      
             # 1. Disable or remove the default Nginx config
             sudo mv /etc/nginx/conf.d/default.conf /etc/nginx/conf.d/default.conf.bak 2>/dev/null || true
-
+      
             # 2. Create Streamlit Nginx config
-            sudo bash -c 'cat > /etc/nginx/conf.d/streamlit.conf << EOL
-            server {
-                listen 80;
-                server_name cisconeural.net;
-                
-                location / {
-                    proxy_pass http://localhost:8501/;
-                    proxy_http_version 1.1;
-                    proxy_set_header Upgrade \$http_upgrade;
-                    proxy_set_header Connection "upgrade";
-                    proxy_set_header Host \$host;
-                    proxy_set_header X-Real-IP \$remote_addr;
-                    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto \$scheme;
-                    proxy_read_timeout 86400;
-                }
-            }
+            sudo bash -c 'cat <<EOL | sed "s/^ *//" > /etc/nginx/conf.d/streamlit.conf
+                  server {
+                      listen 80;
+                      server_name cisconeural.net;
+                      
+                      location / {
+                          proxy_pass http://localhost:8501/;
+                          proxy_http_version 1.1;
+                          proxy_set_header Upgrade \$http_upgrade;
+                          proxy_set_header Connection "upgrade";
+                          proxy_set_header Host \$host;
+                          proxy_set_header X-Real-IP \$remote_addr;
+                          proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                          proxy_set_header X-Forwarded-Proto \$scheme;
+                          proxy_read_timeout 86400;
+                      }
+                  }
             EOL'
-
-            # 3. Stop/remove existing container and run new one (with sudo)
+      
+            # 3. Stop/remove existing container and run new one
             sudo docker stop streamlit-container 2>/dev/null || true
             sudo docker rm streamlit-container 2>/dev/null || true
-
             sudo docker pull robinttw/streamlit:latest
             sudo docker run -d \
                 --name streamlit-container \
                 -p 8501:8501 \
                 robinttw/streamlit:latest
-
+      
             # 4. Verify Nginx config and restart
             sudo nginx -t
             sudo systemctl restart nginx
-
+      
             # 5. Print Docker and Nginx status for sanity check
             sudo docker ps
             sudo systemctl status nginx --no-pager
-
             echo "Nginx and Streamlit container setup complete."
-          EOF
+            EOF
