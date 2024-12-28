@@ -82,90 +82,52 @@ jobs:
   ########################################################################
   deploy:
     runs-on: ubuntu-latest
-    needs: build-and-push  # Ensures this job runs AFTER build-and-push
-
+    needs: build-and-push  # AFTER you have built & pushed the image
+  
     steps:
-      # -------------------------------------------------------------
-      # (1) SSH Setup
-      # -------------------------------------------------------------
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.7.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      # -------------------------------------------------------------
-      # (2) SSH into EC2 and run deployment steps
-      # -------------------------------------------------------------  
+  
       - name: Deploy to Amazon Linux EC2
         run: |
-          # Use keep-alive SSH options to prevent broken pipe
           ssh -o StrictHostKeyChecking=no \
               -o ServerAliveInterval=60 \
               -o ServerAliveCountMax=2 \
               ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            
-            # Exit on errors, show commands, treat unset vars as errors, fail on pipe errors
             set -euxo pipefail
-            echo "Starting deployment on Amazon Linux EC2 with Docker Compose..."
-            #################################################################
-            # A.  start Docker + Docker Compose
-            #################################################################
-            echo "Enabling and starting Docker..."
+            echo "Starting deployment on Amazon Linux EC2..."
+  
+            # (A) Make sure Docker is running
             sudo systemctl enable docker
             sudo systemctl start docker
-            #################################################################
-            # B. Clean up any existing CNN folder to avoid Git conflicts
-            #################################################################
-            if [ -d "CNN" ]; then
-              echo "Removing old CNN directory..."
-              rm -rf CNN
-            fi
-            #################################################################
-            # C. Clone your repo fresh
-            #################################################################
-            echo "Cloning repository..."
+  
+            # (B) Remove old repo just in case (optional)
+            rm -rf CNN
+  
+            # (C) Clone code if you need local files, otherwise skip
             git clone https://github.com/TeachMeTW/CNN.git CNN
-            cd CNN || { echo "Failed to enter CNN directory!"; exit 1; }
-            #################################################################
-            # D. Decode your Base64-encoded .env
-            #################################################################
-            # If your environment requires different flags for base64 decoding
-            # (e.g. macOS might need `-D` instead of `-d`), adjust accordingly.
-            echo "Decoding .env from DOTENV_FILE secret..."
+            cd CNN
+  
+            # (D) Decode your .env if needed
             echo "${{ secrets.DOTENV_FILE }}" | base64 -d > .env
-            # (Optional) For debugging, you can print the first few lines:
-            # head .env
-            #################################################################
-            # E. Docker Compose: stop old containers, prune, build/run new
-            #################################################################
-            echo "Bringing down any existing containers..."
+  
+            # (E) docker-compose pull + up (NO build)
             sudo docker-compose down -v || true
-            echo "Pruning unused Docker resources..."
-            sudo docker system prune -af --volumes || true
-            echo "Pulling & building images (no-cache) ..."
-            sudo docker-compose pull || true
-            sudo docker-compose build --no-cache
-            echo "Starting containers in detached mode..."
+            sudo docker-compose pull
             sudo docker-compose up -d
-            #################################################################
-            # F. Health Check
-            #################################################################
-            echo "Waiting for Streamlit to start..."
+  
+            # (F) Simple health check
             sleep 10
-            # Verify that the service is up on port 8501
-            echo "Checking Streamlit health at http://localhost:8501..."
             if ! curl -f http://localhost:8501; then
-              echo "Health check failed! Check logs or revert changes."
-              # Optionally do a rollback or additional steps if needed
+              echo "Health check failed!"
               exit 1
             fi
-            echo "Health check passed! Deployment is successful."
-            #################################################################
-            # G. Final Docker Cleanup (Optional)
-            #################################################################
-            sudo docker system prune -af --volumes || true
-            echo "Deployment completed successfully."
+  
+            echo "Deployment done with prebuilt image!"
           EOF
+
   ########################################################################
   # Job 3: Configure Nginx as Reverse Proxy for cisconeural.net
   ########################################################################
