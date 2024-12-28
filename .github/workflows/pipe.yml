@@ -208,7 +208,7 @@ jobs:
   ########################################################################
   configure-nginx:
     runs-on: ubuntu-latest
-    needs: deploy   # Runs AFTER the 'deploy' job completes
+    needs: deploy  # Runs AFTER the 'deploy' job completes
 
     steps:
       # -------------------------------------------------------------
@@ -220,7 +220,7 @@ jobs:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       # -------------------------------------------------------------
-      # (2) SSH into EC2 and configure Nginx
+      # (2) SSH into EC2 and configure Nginx + Docker container
       # -------------------------------------------------------------
       - name: Configure Nginx on EC2
         run: |
@@ -252,8 +252,8 @@ jobs:
                 }
             }
             EOL'
-            
-            # 3. Stop/remove existing container and run new one
+
+            # 3. Stop/remove existing container and run new one (with sudo)
             sudo docker stop streamlit-container 2>/dev/null || true
             sudo docker rm streamlit-container 2>/dev/null || true
 
@@ -272,4 +272,4 @@ jobs:
             sudo systemctl status nginx --no-pager
 
             echo "Nginx and Streamlit container setup complete."
-            EOF
+          EOF
