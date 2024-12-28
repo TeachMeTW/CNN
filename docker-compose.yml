@@ -1,51 +1,31 @@
-# Note: Docker Compose v2+ no longer needs a top-level "version:" field.
-# If you still use Docker Compose v1, you can safely add 'version: "3.8"'
-# at the top. But on new systems, it's optional/ignored.
-
 services:
   streamlit:
-    # Pull the prebuilt image from Docker Hub, using your Docker Hub username
-    image: "${DOCKERHUB_USERNAME:-robinttw}/streamlit:latest"
+    image: "robinttw/streamlit:latest"
     container_name: "streamlit_app"
 
-    # If your environment doesn't define STREAMLIT_PORT,
-    # default to 8501 (Streamlit's default port).
+    # If STREAMLIT_PORT is not set, default to 8501
     ports:
       - "${STREAMLIT_PORT:-8501}:${STREAMLIT_PORT:-8501}"
 
-    # Load environment variables from .env (decoded by your pipeline)
     env_file:
       - .env
-
-    # If you had a local code volume for dev, uncomment:
-    # volumes:
-    #   - .:/app
 
     depends_on:
       - mongo
 
-    # Command to start Streamlit
-    # (If your code is baked into the image, the file paths must match)
     command: streamlit run Overview.py \
              --server.port=${STREAMLIT_PORT:-8501} \
              --server.address=0.0.0.0
 
   mongo:
-    # Use a tagged version of Mongo, or default to 4.4 if not set
-    image: "mongo:${MONGO_VERSION:-6.0}"
-
+    image: "mongo:${MONGO_VERSION:-4.4}"
     container_name: "${MONGO_CONTAINER_NAME:-mongo_db}"
-
-    # Default to 27017 if MONGO_PORT not provided
     ports:
       - "${MONGO_PORT:-27017}:${MONGO_PORT:-27017}"
-
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME:-root}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:-example}
       - MONGO_INITDB_DATABASE=${MONGO_INITDB_DATABASE:-appdb}
-
-    # Persistent volume for Mongo data
     volumes:
       - mongo_data:/data/db
 
