@@ -253,23 +253,23 @@ jobs:
             }
             EOL'
             
-                        # 3. Stop/remove existing container and run new one
-                        docker stop streamlit-container 2>/dev/null || true
-                        docker rm streamlit-container 2>/dev/null || true
-            
-                        docker pull robinttw/streamlit:latest
-                        docker run -d \
-                            --name streamlit-container \
-                            -p 8501:8501 \
-                            robinttw/streamlit:latest
-            
-                        # 4. Verify Nginx config and restart
-                        sudo nginx -t
-                        sudo systemctl restart nginx
-            
-                        # 5. Print Docker and Nginx status for sanity check
-                        docker ps
-                        sudo systemctl status nginx --no-pager
-            
-                        echo "Nginx and Streamlit container setup complete."
+            # 3. Stop/remove existing container and run new one
+            sudo docker stop streamlit-container 2>/dev/null || true
+            sudo docker rm streamlit-container 2>/dev/null || true
+
+            sudo docker pull robinttw/streamlit:latest
+            sudo docker run -d \
+                --name streamlit-container \
+                -p 8501:8501 \
+                robinttw/streamlit:latest
+
+            # 4. Verify Nginx config and restart
+            sudo nginx -t
+            sudo systemctl restart nginx
+
+            # 5. Print Docker and Nginx status for sanity check
+            sudo docker ps
+            sudo systemctl status nginx --no-pager
+
+            echo "Nginx and Streamlit container setup complete."
             EOF
