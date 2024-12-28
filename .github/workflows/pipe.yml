@@ -96,100 +96,107 @@ jobs:
 
       # -------------------------------------------------------------
       # (2) SSH into EC2 and run deployment steps
-      # -------------------------------------------------------------
+      # -------------------------------------------------------------  
       - name: Deploy to Amazon Linux EC2
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            set -e
-            set -x
-  
+          # Use keep-alive SSH options to prevent broken pipe
+          ssh -o StrictHostKeyChecking=no \
+              -o ServerAliveInterval=60 \
+              -o ServerAliveCountMax=2 \
+              ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            
+            # Exit on errors, show commands, treat unset vars as errors, fail on pipe errors
+            set -euxo pipefail
+
             echo "Starting deployment on Amazon Linux EC2 with Docker Compose..."
-  
+
             #################################################################
-            # A. Install and start Docker + docker-compose (if needed)
+            # A. Install & start Docker + Docker Compose
             #################################################################
-            # Update packages and install Docker (if not already installed)
+            echo "Updating system packages and installing Docker..."
             sudo yum update -y
-            sudo yum install -y docker
-  
-            # Start Docker if not running
-            sudo systemctl start docker
+            sudo yum install -y docker git curl
+
+            echo "Enabling and starting Docker..."
             sudo systemctl enable docker
-  
-            # Install docker-compose if it isn't already installed.
-            # For Amazon Linux, you may need to install extra packages or
-            # manually download docker-compose; adjust as needed:
-            if ! command -v docker-compose &> /dev/null
-            then
-              echo "Installing docker-compose..."
+            sudo systemctl start docker
+
+            # Check if Docker Compose is installed
+            if ! command -v docker-compose &> /dev/null; then
+              echo "Installing Docker Compose..."
+              # Adjust the version if you want a newer or older version
               sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" \
                 -o /usr/local/bin/docker-compose
               sudo chmod +x /usr/local/bin/docker-compose
             else
-              echo "docker-compose is already installed."
+              echo "Docker Compose is already installed."
             fi
-  
+
             #################################################################
-            # B. Remove existing CNN directory (avoid Git errors)
+            # B. Clean up any existing CNN folder to avoid Git conflicts
             #################################################################
             if [ -d "CNN" ]; then
-              echo "Removing existing CNN directory..."
+              echo "Removing old CNN directory..."
               rm -rf CNN
             fi
-  
+
             #################################################################
             # C. Clone your repo fresh
             #################################################################
-            echo "Cloning the repository..."
+            echo "Cloning repository..."
             git clone https://github.com/TeachMeTW/CNN.git CNN
-            cd CNN || { echo "Failed to enter CNN directory! Exiting."; exit 1; }
-  
+            cd CNN || { echo "Failed to enter CNN directory!"; exit 1; }
+
             #################################################################
-            # D. Decode your Base64-encoded .env and place it in CNN dir
+            # D. Decode your Base64-encoded .env
             #################################################################
+            # If your environment requires different flags for base64 decoding
+            # (e.g. macOS might need `-D` instead of `-d`), adjust accordingly.
             echo "Decoding .env from DOTENV_FILE secret..."
-            # Make sure ${{ secrets.DOTENV_FILE }} is your Base64-encoded .env
             echo "${{ secrets.DOTENV_FILE }}" | base64 -d > .env
-  
-            echo "Contents of .env file (for debug, optional):"
-            cat .env
-  
+
+            # (Optional) For debugging, you can print the first few lines:
+            # head .env
+
             #################################################################
-            # E. Build and run Docker Compose
+            # E. Docker Compose: stop old containers, prune, build/run new
             #################################################################
-            echo "Bringing up Docker Compose services..."
+            echo "Bringing down any existing containers..."
+            sudo docker-compose down -v || true
+
+            echo "Pruning unused Docker resources..."
+            sudo docker system prune -af --volumes || true
+
+            echo "Pulling & building images (no-cache) ..."
             sudo docker-compose pull || true
             sudo docker-compose build --no-cache
+
+            echo "Starting containers in detached mode..."
             sudo docker-compose up -d
-  
-            echo "Services are starting up..."
-  
+
             #################################################################
-            # F. (Optional) Basic health check
+            # F. Health Check
             #################################################################
-            # Adjust the health check for your environment & service
             echo "Waiting for Streamlit to start..."
             sleep 10
-  
-            # Attempt to curl the service on port 8501
+
+            # Verify that the service is up on port 8501
+            echo "Checking Streamlit health at http://localhost:8501..."
             if ! curl -f http://localhost:8501; then
-              echo "Health check failed! Investigate logs."
-              # Possibly do a rollback or additional debug steps
+              echo "Health check failed! Check logs or revert changes."
+              # Optionally do a rollback or additional steps if needed
               exit 1
             fi
-  
-            echo "Health check passed! Deployment looks good."
-  
+
+            echo "Health check passed! Deployment is successful."
+
             #################################################################
-            # G. Clean up old Docker artifacts
+            # G. Final Docker Cleanup (Optional)
             #################################################################
             sudo docker system prune -af --volumes || true
-            sudo docker image prune -f || true
-  
+
             echo "Deployment completed successfully."
           EOF
-
-
   ########################################################################
   # Job 3: Configure Nginx as Reverse Proxy for cisconeural.net
   ########################################################################
