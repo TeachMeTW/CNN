@@ -114,7 +114,7 @@ jobs:
 
             # 4) Decode .env (base64)
             echo "${{ secrets.DOTENV_FILE }}" | base64 -d > .env
-
+            cp ~/CNN/.env .env
             # 5) docker-compose down - remove old containers that might hold port 8501
             sudo docker-compose down -v || true
 
