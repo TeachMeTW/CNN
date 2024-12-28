@@ -5,7 +5,7 @@
 services:
   streamlit:
     # Pull the prebuilt image from Docker Hub, using your Docker Hub username
-    image: "${DOCKERHUB_USERNAME:-teachmetw}/streamlit:latest"
+    image: "${DOCKERHUB_USERNAME:-robinttw}/streamlit:latest"
     container_name: "streamlit_app"
 
     # If your environment doesn't define STREAMLIT_PORT,
@@ -32,7 +32,7 @@ services:
 
   mongo:
     # Use a tagged version of Mongo, or default to 4.4 if not set
-    image: "mongo:${MONGO_VERSION:-4.4}"
+    image: "mongo:${MONGO_VERSION:-6.0}"
 
     container_name: "${MONGO_CONTAINER_NAME:-mongo_db}"
 
