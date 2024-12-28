@@ -149,10 +149,10 @@ jobs:
             #################################################################
             echo "Decoding .env from DOTENV_FILE secret..."
             # Make sure ${{ secrets.DOTENV_FILE }} is your Base64-encoded .env
-            echo "${{ secrets.DOTENV_FILE }}" | sudo base64 -d > .env
+            echo "${{ secrets.DOTENV_FILE }}" | base64 -d > .env
   
             echo "Contents of .env file (for debug, optional):"
-            sudo cat .env
+            cat .env
   
             #################################################################
             # E. Build and run Docker Compose
