@@ -108,24 +108,11 @@ jobs:
             set -euxo pipefail
             echo "Starting deployment on Amazon Linux EC2 with Docker Compose..."
             #################################################################
-            # A. Install & start Docker + Docker Compose
+            # A.  start Docker + Docker Compose
             #################################################################
-            echo "Updating system packages and installing Docker..."
-            sudo yum update -y
-            sudo yum install -y docker git curl
             echo "Enabling and starting Docker..."
             sudo systemctl enable docker
             sudo systemctl start docker
-            # Check if Docker Compose is installed
-            if ! command -v docker-compose &> /dev/null; then
-              echo "Installing Docker Compose..."
-              # Adjust the version if you want a newer or older version
-              sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" \
-                -o /usr/local/bin/docker-compose
-              sudo chmod +x /usr/local/bin/docker-compose
-            else
-              echo "Docker Compose is already installed."
-            fi
             #################################################################
             # B. Clean up any existing CNN folder to avoid Git conflicts
             #################################################################
