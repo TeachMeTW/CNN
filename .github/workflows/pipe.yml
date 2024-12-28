@@ -102,103 +102,90 @@ jobs:
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             set -e
             set -x
-
-            echo "Starting deployment on Amazon Linux EC2..."
-
+  
+            echo "Starting deployment on Amazon Linux EC2 with Docker Compose..."
+  
             #################################################################
-            # A. Install and start Docker (if not already installed)
+            # A. Install and start Docker + docker-compose (if needed)
             #################################################################
+            # Update packages and install Docker (if not already installed)
             sudo yum update -y
             sudo yum install -y docker
+  
+            # Start Docker if not running
             sudo systemctl start docker
             sudo systemctl enable docker
-
-            #################################################################
-            # B. Stop & remove all existing containers
-            #################################################################
-            echo "Stopping and removing all existing containers..."
-            existing_containers=$(sudo docker ps -aq)
-            if [ -n "$existing_containers" ]; then
-              sudo docker stop $existing_containers || true
-              sudo docker rm $existing_containers || true
+  
+            # Install docker-compose if it isn't already installed.
+            # For Amazon Linux, you may need to install extra packages or
+            # manually download docker-compose; adjust as needed:
+            if ! command -v docker-compose &> /dev/null
+            then
+              echo "Installing docker-compose..."
+              sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" \
+                -o /usr/local/bin/docker-compose
+              sudo chmod +x /usr/local/bin/docker-compose
+            else
+              echo "docker-compose is already installed."
             fi
-
+  
             #################################################################
-            # C. (Optional) Remove all existing images
+            # B. Remove existing CNN directory (avoid Git errors)
             #################################################################
-            echo "Removing all existing images..."
-            existing_images=$(sudo docker images -q)
-            if [ -n "$existing_images" ]; then
-              sudo docker rmi -f $existing_images || true
+            if [ -d "CNN" ]; then
+              echo "Removing existing CNN directory..."
+              rm -rf CNN
             fi
-
+  
             #################################################################
-            # D. Prune Docker resources
+            # C. Clone your repo fresh
             #################################################################
-            echo "Pruning Docker resources..."
-            sudo docker volume prune -f || true
-            sudo docker system prune -af --volumes || true
-            # Some Docker versions on Amazon Linux 2023 may complain
-            # about the 'dangling=[false true]' filter. Keep it simple:
-            sudo docker image prune -f || true
-
+            echo "Cloning the repository..."
+            git clone https://github.com/TeachMeTW/CNN.git CNN
+            cd CNN || { echo "Failed to enter CNN directory! Exiting."; exit 1; }
+  
             #################################################################
-            # E. Pull your code locally (if needed) & pull Docker image
+            # D. Decode your Base64-encoded .env and place it in CNN dir
             #################################################################
-            REPO_DIR=~/CNN
-            DOCKER_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
-            PORT=8501
-
-            echo "Navigating to repository directory..."
-            if [ ! -d "$REPO_DIR" ]; then
-              echo "Directory not found, cloning repo for the first time..."
-              git clone https://github.com/TeachMeTW/CNN.git $REPO_DIR
-            fi
-
-            cd $REPO_DIR || { echo "Repository directory not found! Exiting."; exit 1; }
-
-            echo "Pulling latest changes from the repository..."
-            git pull origin main || echo "Could not pull from repo. Check permissions."
-
-            echo "Pulling the Docker image..."
-            sudo docker pull $DOCKER_IMAGE || true
-
+            echo "Decoding .env from DOTENV_FILE secret..."
+            # Make sure ${{ secrets.DOTENV_FILE }} is your Base64-encoded .env
+            echo "${{ secrets.DOTENV_FILE }}" | sudo base64 -d > .env
+  
+            echo "Contents of .env file (for debug, optional):"
+            sudo cat .env
+  
             #################################################################
-            # F. Run the container & health check
+            # E. Build and run Docker Compose
             #################################################################
-            echo "Running the Docker container on port $PORT..."
-            sudo docker run -d --name streamlit-container -p $PORT:8501 $DOCKER_IMAGE
-
-            echo "Waiting for container to initialize..."
+            echo "Bringing up Docker Compose services..."
+            sudo docker-compose pull || true
+            sudo docker-compose build --no-cache
+            sudo docker-compose up -d
+  
+            echo "Services are starting up..."
+  
+            #################################################################
+            # F. (Optional) Basic health check
+            #################################################################
+            # Adjust the health check for your environment & service
+            echo "Waiting for Streamlit to start..."
             sleep 10
-
-            echo "Performing health check..."
-            if ! curl -f http://localhost:$PORT; then
-              echo "Health check failed! Rolling back..."
-
-              # Stop the failing container
-              sudo docker stop streamlit-container || true
-              sudo docker rm streamlit-container || true
-
-              # Pull & run your fallback "latest" tag
-              sudo docker pull $DOCKER_IMAGE || true
-              sudo docker run -d --name streamlit-container -p $PORT:8501 $DOCKER_IMAGE
-
-              # Restart Nginx (or any other services)
-              sudo systemctl restart nginx || true
+  
+            # Attempt to curl the service on port 8501
+            if ! curl -f http://localhost:8501; then
+              echo "Health check failed! Investigate logs."
+              # Possibly do a rollback or additional debug steps
               exit 1
             fi
-
-            echo "Health check passed! Container is up and running."
-            # You could also restart Nginx here if desired:
-            sudo systemctl restart nginx || true
-
+  
+            echo "Health check passed! Deployment looks good."
+  
             #################################################################
-            # G. Final Docker cleanup
+            # G. Clean up old Docker artifacts
             #################################################################
             sudo docker system prune -af --volumes || true
             sudo docker image prune -f || true
-
+  
             echo "Deployment completed successfully."
           EOF
 
