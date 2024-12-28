@@ -2,26 +2,37 @@ version: "3.8"
 
 services:
   streamlit:
-    build: .
+    # Instead of build: ., just use the Docker image from Docker Hub
+    image: "${DOCKERHUB_USERNAME}/streamlit:latest"
+    container_name: streamlit_app
+
+    # Optionally ensure it always pulls the latest from Docker Hub
+    # (requires docker-compose v2.4+ for pull_policy)
+    # pull_policy: always
+
     ports:
       - "${STREAMLIT_PORT}:${STREAMLIT_PORT}"
-    volumes:
-      - .:/app
-    environment:
-      - PYTHONUNBUFFERED=${PYTHONUNBUFFERED}
-      - PYTHONDONTWRITEBYTECODE=${PYTHONDONTWRITEBYTECODE}
-      - MONGO_URI=${MONGO_URI}
-      - STREAMLIT_SERVER_RUN_ON_SAVE=true
-      - STREAMLIT_SERVER_PORT=8501
-      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
-      - STREAMLIT_SERVER_ENABLE_CORS=false
+
+    # If you still have dynamic environment variables in .env, use env_file:
+    env_file:
+      - .env
+
+    # If you want local files mounted (for development) keep it;
+    # otherwise remove this to rely on what's baked into the image
+    # volumes:
+    #   - .:/app
+
     depends_on:
       - mongo
-    command: streamlit run Overview.py --server.port=${STREAMLIT_PORT} --server.address=${STREAMLIT_ADDRESS}
+
+    # Possibly change the command if the code is baked in the image
+    command: streamlit run Overview.py \
+             --server.port=${STREAMLIT_PORT} \
+             --server.address=0.0.0.0
 
   mongo:
-    image: mongo:${MONGO_VERSION}
-    container_name: ${MONGO_CONTAINER_NAME}
+    image: "mongo:${MONGO_VERSION}"
+    container_name: "${MONGO_CONTAINER_NAME}"
     ports:
       - "${MONGO_PORT}:${MONGO_PORT}"
     environment:
