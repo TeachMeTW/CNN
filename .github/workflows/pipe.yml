@@ -82,8 +82,8 @@ jobs:
   ########################################################################
   deploy:
     runs-on: ubuntu-latest
-    needs: build-and-push  # AFTER you have built & pushed the image
-  
+    needs: build-and-push
+    
     steps:
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.7.0
@@ -99,26 +99,26 @@ jobs:
             set -euxo pipefail
             echo "Starting deployment on Amazon Linux EC2..."
   
-            # (A) Make sure Docker is running
+            # 1) Make sure Docker is running
             sudo systemctl enable docker
             sudo systemctl start docker
   
-            # (B) Remove old repo just in case (optional)
+            # 2) Remove old repo just in case (optional)
             rm -rf CNN
   
-            # (C) Clone code if you need local files, otherwise skip
+            # 3) Clone code if you need local files (for .env, etc.)
             git clone https://github.com/TeachMeTW/CNN.git CNN
             cd CNN
   
-            # (D) Decode your .env if needed
+            # 4) Decode your .env if needed
             echo "${{ secrets.DOTENV_FILE }}" | base64 -d > .env
   
-            # (E) docker-compose pull + up (NO build)
+            # 5) Compose "down" and "pull" your prebuilt image
             sudo docker-compose down -v || true
             sudo docker-compose pull
             sudo docker-compose up -d
   
-            # (F) Simple health check
+            # 6) Simple health check
             sleep 10
             if ! curl -f http://localhost:8501; then
               echo "Health check failed!"
