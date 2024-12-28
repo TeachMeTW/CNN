@@ -227,32 +227,39 @@ jobs:
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             set -e
             set -x
-
+      
             echo "Configuring Nginx on Amazon Linux EC2..."
-
-            # 1. Install Nginx if not installed
+      
+            # 1. Install Nginx if not already installed
             sudo yum update -y
             sudo yum install -y nginx
             sudo systemctl enable nginx
-
-            # 2. Create/Update an Nginx config to reverse-proxy port 80 -> 8501
+      
+            # 2. (Optional) Disable any default Nginx config that might conflict
+            if [ -f /etc/nginx/conf.d/default.conf ]; then
+              sudo mv /etc/nginx/conf.d/default.conf /etc/nginx/conf.d/default.conf.bak
+            fi
+      
+            # 3. Create/Update an Nginx config to reverse-proxy port 80 -> 8501
             #    Replace 'cisconeural.net' with your actual domain if needed.
             cat <<'NGINXCONF' | sudo tee /etc/nginx/conf.d/streamlit.conf
-              server {
-                  listen 80;
-                  server_name cisconeural.net;
-              
-                  location / {
-                      proxy_pass http://127.0.0.1:8501;
-                      proxy_http_version 1.1;
-                      proxy_set_header Host $host;
-                      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                  }
-              }
-              NGINXCONF
-
-            # 3. Restart Nginx to apply changes
+            server {
+                listen 80 default_server;
+                server_name cisconeural.net www.cisconeural.net;
+            
+                location / {
+                    proxy_pass http://127.0.0.1:8501;
+                    proxy_http_version 1.1;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                }
+            }
+            NGINXCONF
+      
+            # 4. Test and restart Nginx to apply changes
+            sudo nginx -t
             sudo systemctl restart nginx
-
-            echo "Nginx configured successfully. You can now access the app at http://cisconeural.net"
+      
+            echo "Nginx configured successfully."
+            echo "You can now access the app at http://cisconeural.net (assuming port 80 is open)."
           EOF
