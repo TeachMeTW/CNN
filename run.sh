@@ -21,4 +21,4 @@ esac
 echo "Detected architecture: $ARCH"
 
 # Run Docker Compose with the environment set
-docker-compose up
+docker-compose -f docker-compose-dev.yml up 

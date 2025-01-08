@@ -3,6 +3,7 @@ services:
     image: "robinttw/streamlit:${ARCH}-latest"
     container_name: "streamlit_app"
 
+    # If STREAMLIT_PORT is not set, default to 8501
     ports:
       - "${STREAMLIT_PORT:-8501}:${STREAMLIT_PORT:-8501}"
 
@@ -13,12 +14,11 @@ services:
       - mongo
 
     volumes:
-      - ./:/app  # Mount current directory to /app in the container
+      - ./:/app 
 
-    command: streamlit run /app/Overview.py \
+    command: streamlit run Overview.py \
              --server.port=${STREAMLIT_PORT:-8501} \
-             --server.address=0.0.0.0 \
-             --server.runOnSave true
+             --server.address=0.0.0.0
 
   mongo:
     image: "mongo:${MONGO_VERSION:-4.4}"
