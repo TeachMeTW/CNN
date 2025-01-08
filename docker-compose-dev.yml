@@ -1,0 +1,36 @@
+services:
+  streamlit:
+    image: "robinttw/streamlit:${ARCH}-latest"
+    container_name: "streamlit_app"
+
+    ports:
+      - "${STREAMLIT_PORT:-8501}:${STREAMLIT_PORT:-8501}"
+
+    env_file:
+      - .env
+
+    depends_on:
+      - mongo
+
+    volumes:
+      - ./:/app  # Mount current directory to /app in the container
+
+    command: streamlit run /app/Overview.py \
+             --server.port=${STREAMLIT_PORT:-8501} \
+             --server.address=0.0.0.0 \
+             --server.runOnSave true
+
+  mongo:
+    image: "mongo:${MONGO_VERSION:-4.4}"
+    container_name: "${MONGO_CONTAINER_NAME:-mongo_db}"
+    ports:
+      - "${MONGO_PORT:-27017}:${MONGO_PORT:-27017}"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME:-root}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:-example}
+      - MONGO_INITDB_DATABASE=${MONGO_INITDB_DATABASE:-appdb}
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:
