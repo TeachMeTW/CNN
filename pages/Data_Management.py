@@ -3,9 +3,11 @@ import pandas as pd
 from pymongo import MongoClient
 import os
 from dotenv import load_dotenv
+import plotly.express as px
 
 load_dotenv()  # Load environment variables from .env
 
+# components
 def csv_uploader(mongo_uri: str, db_name: str):
     """
     Allows the user to upload a CSV and store it into a MongoDB collection.
@@ -43,11 +45,7 @@ def csv_uploader(mongo_uri: str, db_name: str):
             finally:
                 client.close()
 
-def data_explorer(mongo_uri: str, db_name: str):
-    """
-    Explore data from the chosen MongoDB database and collection.
-    """
-    st.subheader("Data Explorer")
+def overview_dashboard(mongo_uri: str, db_name: str):
     try:
         client = MongoClient(mongo_uri)
         db = client[db_name]
@@ -60,32 +58,133 @@ def data_explorer(mongo_uri: str, db_name: str):
 
         collection_choice = st.selectbox("Select a collection", options=collections)
         if collection_choice:
-            # Limit to 100 docs for performance (example logic)
-            cursor = db[collection_choice].find().limit(100)
-            docs = list(cursor)
-            st.write(
-                f"Showing first 100 documents from **{collection_choice}** "
-                "(if that many exist)."
-            )
-            st.write(
-                "Total documents in collection may be more. "
-                "Use your own queries for deeper analysis."
-            )
+            collection = db[collection_choice]
 
-            if docs:
-                # Convert _id to string so we can display it easily
-                for doc in docs:
-                    doc["_id"] = str(doc["_id"])
+            latestReadings = get_latest_readings(collection)
+            latestReadingsdf = pd.DataFrame(latestReadings)
 
-                df = pd.DataFrame(docs)
-                st.dataframe(df)
+            st.subheader(f"Latest Readings from Sensors")
+            st.dataframe(latestReadingsdf, use_container_width=True)
+
+            sample_document = collection.find_one()
+
+            if sample_document:
+                columns = list(sample_document.keys())
+                if "_id" in columns:
+                    columns.remove("_id")
+                if "device" in columns:
+                    columns.remove("device")
+                if "ts" in columns:
+                    columns.remove("ts")
+
+                parameter = st.selectbox("Select an attribute", columns)
             else:
-                st.info(f"No documents found in **{collection_choice}**.")
+                st.warning("The collection is empty or could not fetch a sample document.")
+
+            stats = calculate_stats(collection, parameter)
+            statsdf = pd.DataFrame.from_dict(stats, orient="index")
+
+            st.subheader(f"Statistics Table for {parameter}")
+            st.dataframe(statsdf, use_container_width=True)
+
+            tvpTable = get_time_vs_parameter(collection, parameter)
+            tvpdf = pd.DataFrame(tvpTable)
+
+            # Plot the line graph
+            fig = px.line(tvpdf, x="time", y=parameter, color="device", markers=True,
+              title="Relationship Between " + parameter + " and Time",
+              labels={"time": "Time", parameter: parameter})
+            
+            st.plotly_chart(fig)
 
     except Exception as e:
         st.error(f"Error exploring MongoDB: {e}")
     finally:
         client.close()
+
+# helper functions
+def calculate_stats(collection, parameter):
+    devices = collection.distinct("device") 
+
+    stats = {}
+    for device in devices:
+        readings = list(collection.find({"device": device}, {parameter: 1, "_id": 0}))
+
+        parameterValues = []
+
+        for reading in readings:
+            if(parameter in reading):
+                parameterValues.append(reading[parameter])
+
+        if parameterValues:
+            if(type(parameterValues[0]) is bool) :
+                return calculate_frequencies(collection, parameter)
+            stats[device] = {
+                "min": min(parameterValues),
+                "max": max(parameterValues),
+                "avg": sum(parameterValues) / len(parameterValues),
+            }
+        else:
+            stats[device] = {"min": None, "max": None, "avg": None}
+
+    return stats
+
+def calculate_frequencies(collection, parameter):
+    devices = collection.distinct("device") 
+
+    frequencies = {}
+    for device in devices:
+        readings = list(collection.find({"device": device}, {parameter: 1, "_id": 0}))
+
+        parameterValues = []
+
+        for reading in readings:
+            if(parameter in reading):
+                parameterValues.append(reading[parameter])
+
+        if parameterValues:
+            total = 0
+            count = 0
+            for parameterValue in parameterValues:
+                if(parameterValue):
+                    count = count + 1
+                total = total + 1
+            
+            frequency = count/total
+            frequencies[device] = {
+                "frequency": frequency
+            }
+        else:
+            frequencies[device] = {"frequency": None}
+
+    return frequencies
+
+def get_latest_readings(collection):
+    devices = collection.distinct("device") 
+
+    latest_readings = []
+    for device in devices:
+        latest_reading = collection.find_one(
+            {"device": device},
+            sort=[("ts", -1)]
+        )
+        if latest_reading:
+            latest_readings.append(latest_reading)
+
+    return latest_readings
+
+def get_time_vs_parameter(collection, parameter):
+    try:
+        readings = list(collection.find({parameter: {"$exists": True}}, {"ts": 1, parameter: 1, "device": 1, "_id": 0}))
+
+        tvpTable = [{"time": reading["ts"], "device": reading["device"], parameter: reading[parameter]} for reading in readings]
+        tvpTable.sort(key=lambda x: x["time"])
+
+        return tvpTable
+
+    except Exception as e:
+        st.error(f"Error fetching time vs parameter data: {e}")
+        return []
 
 def main():
     st.title("Data Ingestion & Exploration")
@@ -99,12 +198,24 @@ def main():
         "Check the main page for your other tasks."
     )
 
-    # Create two expandable sections
-    with st.expander("Upload CSV to MongoDB"):
-        csv_uploader(mongo_uri, default_db_name)
+    tabs = st.tabs(["Overview Dashboard", "Detailed Data Explorer", "Upload New Data"])
 
-    with st.expander("Explore Existing Data in MongoDB"):
-        data_explorer(mongo_uri, default_db_name)
+    # Overview Dashboard Tab
+    with tabs[0]:
+        st.header("Overview Dashboard")
+        overview_dashboard(mongo_uri, default_db_name)
+
+    # Detailed Data Explorer Tab
+    with tabs[1]:
+        st.header("Detailed Data Explorer")
+        st.write("This section will allow users to explore and filter data.")
+        # Add filters, data tables, or visualizations here
+
+    # Upload New Data Tab
+    with tabs[2]:
+        st.header("Upload New Data")
+        st.write("Use this tab to upload CSVs into MongoDB")
+        csv_uploader(mongo_uri, default_db_name)
 
 # The multipage layout requires you have a "run" statement:
 if __name__ == "__main__":
