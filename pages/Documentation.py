@@ -86,3 +86,10 @@ def show_documentation():
         "   a. Verify the uploaded data is correct and matches expected formats"    
         "   b. Check the hyperparameters used for model training"
     )
+
+
+    def main():
+        show_documentation()
+
+    if __name__ == "__main__":
+        main()
