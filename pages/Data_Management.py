@@ -113,23 +113,32 @@ def detailed_data_explorer(mongo_uri: str, db_name: str):
 
             if not tvpdf.empty:
                 latest_timestamp = tvpdf["time"].max()
+                earliest_timestamp = tvpdf["time"].min()
 
                 time_range = st.radio(
                     "Select time range:",
-                    options=["All time", "Last hour", "Last day", "Last week"],
+                    options=["All time", "Last hour", "Last day", "Last week", "Custom Range"],
                     index=0,
                     help="Choose the time range to filter the data."
                 )
 
                 if time_range == "Last hour":
                     start_time = latest_timestamp - 3600
-                    tvpdf = tvpdf[tvpdf["time"] >= start_time]
+                    tvpdf = tvpdf[(tvpdf["time"] >= start_time) & (tvpdf["time"] <= latest_timestamp)]
                 elif time_range == "Last day":
                     start_time = latest_timestamp - 86400
-                    tvpdf = tvpdf[tvpdf["time"] >= start_time]
+                    tvpdf = tvpdf[(tvpdf["time"] >= start_time) & (tvpdf["time"] <= latest_timestamp)]
                 elif time_range == "Last week":
                     start_time = latest_timestamp - 604800
-                    tvpdf = tvpdf[tvpdf["time"] >= start_time]
+                    tvpdf = tvpdf[(tvpdf["time"] >= start_time) & (tvpdf["time"] <= latest_timestamp)]
+                elif time_range == "Custom Range":
+                    start_date, end_date = st.slider(
+                        "Select custom time range:",
+                        min_value=earliest_timestamp,
+                        max_value=latest_timestamp,
+                        value=(earliest_timestamp, latest_timestamp),
+                    )
+                    tvpdf = tvpdf[(tvpdf["time"] >= start_date) & (tvpdf["time"] <= end_date)]
 
                 all_devices = tvpdf["device"].unique().tolist()
                 selected_devices = st.multiselect(
@@ -156,12 +165,12 @@ def detailed_data_explorer(mongo_uri: str, db_name: str):
                     st.warning("No data available for the selected filters.")
 
             # pagination and table
+            st.header("Data Table")
 
             batch_size = 50 
             total_docs = db[collection_choice].count_documents({})  
             total_pages = (total_docs + batch_size - 1) // batch_size  
 
-            st.write(f"Total documents in **{collection_choice}**: {total_docs}")
             page = st.number_input(
                 "Select page", min_value=1, max_value=total_pages, step=1, value=1
             )
