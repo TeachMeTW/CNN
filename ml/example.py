@@ -74,11 +74,11 @@ print("8")
 MACHINE_TYPE = 'mac'
 ANALYSIS_NAME = 'IoT_calPoly_example_{}'
 RANDOM_STATE = None
-OPTIMIZATION_TRIALS = 1
+OPTIMIZATION_TRIALS = 4
 SCALER = 'Robust'
 ERROR_CUTOFF = 99.97
 # sample percentage for training data
-SAMPLE_PERC = 0.5
+SAMPLE_PERC = 0.8
 
 # 9
 print("9")
