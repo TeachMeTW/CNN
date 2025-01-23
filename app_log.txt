@@ -1,0 +1,119 @@
+2024-12-21 04:33:27,922:INFO:Streamlit app started.
+2024-12-21 04:33:27,927:INFO:Dataframe created with shape: (200, 6)
+2024-12-21 04:33:28,076:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-21 04:33:28,079:INFO:App execution completed successfully.
+2024-12-21 04:33:31,121:INFO:Streamlit app started.
+2024-12-21 04:33:31,126:INFO:Dataframe created with shape: (200, 6)
+2024-12-21 04:33:31,148:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-21 04:33:31,151:INFO:App execution completed successfully.
+2024-12-21 04:33:44,814:INFO:Streamlit app started.
+2024-12-21 04:33:44,820:INFO:Dataframe created with shape: (200, 6)
+2024-12-21 04:33:44,842:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-21 04:33:44,846:INFO:App execution completed successfully.
+2024-12-21 20:01:31,858:INFO:Streamlit app started.
+2024-12-21 20:01:31,870:INFO:Dataframe created with shape: (200, 6)
+2024-12-21 20:01:31,914:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-21 20:01:31,918:INFO:App execution completed successfully.
+2024-12-21 20:03:03,837:INFO:Streamlit app started.
+2024-12-21 20:03:03,837:INFO:Streamlit app started.
+2024-12-21 20:03:03,873:INFO:Dataframe created with shape: (200, 6)
+2024-12-21 20:03:04,017:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-21 20:03:04,021:INFO:App execution completed successfully.
+2024-12-21 20:03:10,768:INFO:Streamlit app started.
+2024-12-21 20:03:10,771:INFO:Dataframe created with shape: (200, 6)
+2024-12-21 20:03:10,797:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-21 20:03:10,801:INFO:App execution completed successfully.
+2024-12-21 20:05:31,437:INFO:Streamlit app started.
+2024-12-21 20:05:31,441:INFO:Dataframe created with shape: (200, 6)
+2024-12-21 20:05:31,465:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-21 20:05:31,469:INFO:App execution completed successfully.
+2024-12-21 20:05:32,975:INFO:Streamlit app started.
+2024-12-21 20:05:32,980:INFO:Dataframe created with shape: (200, 6)
+2024-12-21 20:05:33,003:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-21 20:05:33,008:INFO:App execution completed successfully.
+2024-12-21 20:29:58,415:INFO:Streamlit app started.
+2024-12-21 20:29:58,419:INFO:Dataframe created with shape: (200, 6)
+2024-12-21 20:29:58,583:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-21 20:29:58,586:INFO:App execution completed successfully.
+2024-12-23 02:29:28,147:INFO:Streamlit app started.
+2024-12-23 02:29:28,152:INFO:Dataframe created with shape: (200, 6)
+2024-12-23 02:29:28,281:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2024-12-23 02:29:28,284:INFO:App execution completed successfully.
+2024-12-23 02:29:30,414:INFO:generated new fontManager
+2024-12-23 02:32:33,697:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 02:34:51,593:INFO:Model Loss: 0.04299144446849823
+Optimized Hyper-Parameters: {'latent_dim': 2, 'reduction_modulo': 1, 'dropout_percentage': 0.02, 'epochs': 1000, 'batch_size': 1500, 'learning_rate': 1e-05}
+2024-12-23 03:15:47,963:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 03:15:52,221:INFO:Model Loss: 0.11532827466726303
+Optimized Hyper-Parameters: {'latent_dim': 2, 'reduction_modulo': 2, 'dropout_percentage': 0.24000000000000002, 'epochs': 1500, 'batch_size': 2000, 'learning_rate': 0.01}
+2024-12-23 04:23:40,823:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 04:24:51,684:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 05:01:38,386:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 05:03:20,402:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 05:06:20,972:INFO:Train shape: (104743, 7); Validation shape: (44890, 7);
+2024-12-23 05:19:35,217:INFO:Train shape: (146640, 7); Validation shape: (62846, 7);
+2024-12-26 20:26:05,201:INFO:Streamlit app started.
+2024-12-26 20:26:05,208:INFO:Dataframe created with shape: (200, 6)
+2024-12-26 20:27:04,126:INFO:generated new fontManager
+2025-01-03 02:00:02,532:INFO:Streamlit app started.
+2025-01-03 02:00:03,668:INFO:generated new fontManager
+2025-01-04 06:05:13,009:INFO:Streamlit app started.
+2025-01-04 06:05:13,072:INFO:Dataframe created with shape: (200, 6)
+2025-01-04 06:05:13,766:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2025-01-04 06:05:13,772:INFO:App execution completed successfully.
+2025-01-08 05:04:04,381:INFO:Streamlit app started.
+2025-01-08 05:04:04,387:INFO:Dataframe created with shape: (200, 6)
+2025-01-08 05:04:04,502:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2025-01-08 05:04:04,506:INFO:App execution completed successfully.
+2025-01-08 05:05:37,006:INFO:Streamlit app started.
+2025-01-08 05:05:37,010:INFO:Dataframe created with shape: (200, 6)
+2025-01-08 05:05:37,119:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2025-01-08 05:05:37,122:INFO:App execution completed successfully.
+2025-01-08 05:05:42,766:INFO:Streamlit app started.
+2025-01-08 05:05:42,772:INFO:Dataframe created with shape: (200, 6)
+2025-01-08 05:05:42,801:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2025-01-08 05:05:42,804:INFO:App execution completed successfully.
+2025-01-08 05:05:44,792:INFO:Streamlit app started.
+2025-01-08 05:05:44,796:INFO:Dataframe created with shape: (200, 6)
+2025-01-08 05:05:44,810:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2025-01-08 05:05:44,814:INFO:App execution completed successfully.
+2025-01-08 05:05:47,819:INFO:Streamlit app started.
+2025-01-08 05:05:47,823:INFO:Dataframe created with shape: (200, 6)
+2025-01-08 05:05:47,848:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2025-01-08 05:05:47,852:INFO:App execution completed successfully.
+2025-01-08 05:07:04,346:INFO:Streamlit app started.
+2025-01-08 05:07:04,351:INFO:Dataframe created with shape: (200, 6)
+2025-01-08 05:07:04,476:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2025-01-08 05:07:04,479:INFO:App execution completed successfully.
+2025-01-08 05:07:14,862:INFO:Streamlit app started.
+2025-01-08 05:07:14,866:INFO:Dataframe created with shape: (200, 6)
+2025-01-08 05:07:14,889:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2025-01-08 05:07:14,893:INFO:App execution completed successfully.
+2025-01-08 05:07:19,878:INFO:Streamlit app started.
+2025-01-08 05:07:19,882:INFO:Dataframe created with shape: (200, 6)
+2025-01-08 05:07:19,904:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2025-01-08 05:07:19,907:INFO:App execution completed successfully.
+2025-01-08 16:05:52,304:INFO:Streamlit app started.
+2025-01-08 16:05:52,309:INFO:Dataframe created with shape: (200, 6)
+2025-01-08 16:05:52,414:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2025-01-08 16:05:52,419:INFO:App execution completed successfully.
+2025-01-08 16:05:57,860:INFO:Streamlit app started.
+2025-01-08 16:05:57,864:INFO:Dataframe created with shape: (200, 6)
+2025-01-08 16:05:57,889:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2025-01-08 16:05:57,893:INFO:App execution completed successfully.
+2025-01-08 16:06:00,729:INFO:Streamlit app started.
+2025-01-08 16:06:00,733:INFO:Dataframe created with shape: (200, 6)
+2025-01-08 16:06:00,756:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2025-01-08 16:06:00,760:INFO:App execution completed successfully.
+2025-01-08 16:06:04,080:INFO:Streamlit app started.
+2025-01-08 16:06:04,083:INFO:Dataframe created with shape: (200, 6)
+2025-01-08 16:06:04,106:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2025-01-08 16:06:04,109:INFO:App execution completed successfully.
+2025-01-08 16:06:06,548:INFO:Streamlit app started.
+2025-01-08 16:06:06,551:INFO:Dataframe created with shape: (200, 6)
+2025-01-08 16:06:06,570:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2025-01-08 16:06:06,576:INFO:App execution completed successfully.
+2025-01-14 20:09:30,984:INFO:Streamlit app started.
+2025-01-14 20:09:30,990:INFO:Dataframe created with shape: (200, 6)
+2025-01-14 20:09:31,110:ERROR:Error rendering Pygwalker visualization: 'StreamlitRenderer' object has no attribute 'walk'
+2025-01-14 20:09:31,114:INFO:App execution completed successfully.
