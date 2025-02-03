@@ -18,6 +18,7 @@ warnings.filterwarnings('ignore')
 color_scale = ['green', 'lightgray', 'orange']
 
 def prep_data(data_frame, features, scaler):
+    # Convert feature columns to float, fill missing values, and scale.
     data_frame[features] = data_frame[features].astype(float)
     data_frame[features] = data_frame[features].fillna(0.0)
     if scaler == 'MinMax':
@@ -39,16 +40,12 @@ def prep_data(data_frame, features, scaler):
 def build_latent_space(auto_encoder, data_frame, features):
     latent_layer = int(len(auto_encoder.layers) / 2) + 1
     encoder = tf.keras.models.Sequential(auto_encoder.layers[:latent_layer])
-    latent_space = encoder.predict(data_frame[features].values)
+    # Explicitly cast the feature values to np.float32
+    X = data_frame[features].values.astype(np.float32)
+    latent_space = encoder.predict(X)
     latent_space = pd.DataFrame(latent_space)
-
-    latent_space_names = []
-    i = 1
-    for dim in range(0, latent_space.shape[1]):
-        dim_name = 'Latent_' + str(i)
-        latent_space_names.append(dim_name)
-        i += 1
-
+    # Rename latent space columns for clarity.
+    latent_space_names = ['Latent_' + str(i+1) for i in range(latent_space.shape[1])]
     latent_space.columns = latent_space_names
     return latent_space
 
@@ -66,15 +63,13 @@ def plot_latent_space(data_frame, color, hover_data, title, template, height=Non
                             color_continuous_scale=['blue', 'lightgray', 'red'],
                             color_discrete_map={'GREEN': 'green',
                                                 'YELLOW': 'gold',
-                                                'RED': 'red'
-                                                },
+                                                'RED': 'red'},
                             color_discrete_sequence=px.colors.qualitative.G10)
         fig.update_layout(autosize=auto_size,
                           height=height,
                           width=width,
                           template=template)
         fig.update_xaxes(tickangle=45)
-        #fig.show()
     else:
         fig = px.scatter(data_frame,
                          x='Latent_1',
@@ -85,31 +80,36 @@ def plot_latent_space(data_frame, color, hover_data, title, template, height=Non
                          color_continuous_scale=['blue', 'lightgray', 'red'],
                          color_discrete_map={'GREEN': 'green',
                                              'YELLOW': 'gold',
-                                             'RED': 'red'
-                                             },
+                                             'RED': 'red'},
                          color_discrete_sequence=px.colors.qualitative.G10)
         fig.update_layout(autosize=auto_size,
                           height=height,
                           width=width,
                           template=template)
         fig.update_xaxes(tickangle=45)
-        #fig.show()
     return fig
 
 
 def calculate_error_threshold(auto_encoder, train_data, features, percentile):
-    post_hoc = auto_encoder.predict(train_data[features])
-    train_data['reconstruction_error'] = np.mean(np.power(train_data[features].values - post_hoc, 2), axis=1)
-    train_data['reconstruction_error'] = np.log10(train_data['reconstruction_error']).fillna(0.0)
-    error_threshold = np.percentile(train_data['reconstruction_error'], percentile)
+    # Convert the DataFrame slice to a NumPy array with dtype float32.
+    X = train_data[features].values.astype(np.float32)
+    post_hoc = auto_encoder.predict(X)
+    errors = np.mean(np.power(X - post_hoc, 2), axis=1)
+    errors = np.log10(errors)
+    errors = np.nan_to_num(errors, nan=0.0)
+    train_data['reconstruction_error'] = errors
+    error_threshold = np.percentile(errors, percentile)
     return train_data, error_threshold
 
 
 def calculate_error(auto_encoder, data_frame, features):
-    X = data_frame[features]
+    # Ensure the input data is converted to a float32 array.
+    X = data_frame[features].values.astype(np.float32)
     preds = auto_encoder.predict(X)
-    data_frame['reconstruction_error'] = np.mean(np.power(X - preds, 2), axis=1)
-    data_frame['reconstruction_error'] = np.log10(data_frame['reconstruction_error']).fillna(0.0)
+    errors = np.mean(np.power(X - preds, 2), axis=1)
+    errors = np.log10(errors)
+    errors = np.nan_to_num(errors, nan=0.0)
+    data_frame['reconstruction_error'] = errors
     return data_frame, pd.DataFrame(preds, columns=features)
 
 
@@ -121,8 +121,6 @@ def plot_loss(history, title, template, height=None, width=None, auto_size=True)
         color = 'red'
         if l == 'val_loss':
             color = 'blue'
-        else:
-            pass
         fig.add_trace(go.Scatter(x=history.index,
                                  y=history[l],
                                  mode='lines+markers',
@@ -136,7 +134,6 @@ def plot_loss(history, title, template, height=None, width=None, auto_size=True)
                       xaxis_title="Epoch",
                       yaxis_title="Loss")
     fig.update_xaxes(tickangle=45)
-    #fig.show()
     return fig
 
 
@@ -150,8 +147,7 @@ def plot_error_over_time(df, timestamp_col, id_col, title, color_overlay, error_
                      hover_data=HOVER_DATA,
                      color_continuous_scale=['blue', 'lightgray', 'red'],
                      color_discrete_sequence=px.colors.qualitative.G10,
-                     title=title
-                     )
+                     title=title)
     fig.add_hline(y=error_threshold,
                   line_width=1,
                   line_dash='dash',
@@ -165,7 +161,6 @@ def plot_error_over_time(df, timestamp_col, id_col, title, color_overlay, error_
     fig.update_xaxes(tickangle=45)
     fig.update_traces(opacity=1.0)
     print(f'Reconstruction Error Threshold: {error_threshold}')
-    #fig.show()
     return fig
 
 
@@ -182,7 +177,6 @@ def plot_mean_error(error_frame, template, title, height=None, width=None, auto_
     feature_errors.rename(columns={'index': 'sensor', 'mean': 'avg_reconstruction_error'}, inplace=True)
     feature_errors = feature_errors[['sensor', 'avg_reconstruction_error']].sort_values('avg_reconstruction_error',
                                                                                       ascending=False)
-
     fig = px.bar(feature_errors,
                  x='sensor',
                  y='avg_reconstruction_error',
@@ -190,12 +184,6 @@ def plot_mean_error(error_frame, template, title, height=None, width=None, auto_
                  title=title,
                  color='avg_reconstruction_error',
                  color_continuous_scale=['blue', 'lightgray', 'red'])
-    # fig.add_hline(y=error_threshold, # error_threshold
-    #              line_width=1,
-    #              line_dash='dash',
-    #              line_color='red',
-    #              name='Anomaly Threshold',
-    #              opacity=1.0)
     fig.update_layout(autosize=auto_size,
                       height=height,
                       width=width,
@@ -206,7 +194,6 @@ def plot_mean_error(error_frame, template, title, height=None, width=None, auto_
                       textangle=0,
                       textposition="outside",
                       cliponaxis=False)
-    #fig.show()
     return fig
 
 
@@ -229,7 +216,6 @@ def plot_error_per_feature(error_record, title, template, height=None, width=Non
                       textposition="outside",
                       cliponaxis=False)
     fig.update_xaxes(tickangle=45)
-    #fig.show()
     return fig
 
 
@@ -238,24 +224,20 @@ def build_tsne(best_params, data_frame, features, perplexity):
         n_components = 3
     else:
         n_components = best_params['latent_dim']
+    # Convert the feature data to float32
+    X = data_frame[features].values.astype(np.float32)
     t = TSNE(perplexity=perplexity,
              n_components=n_components,
              verbose=True,
-             random_state=7).fit_transform(data_frame[features])
+             random_state=7).fit_transform(X)
     t = pd.DataFrame(t)
-    tSNE_col_names = []
-    i = 1
-    for dim in range(0, t.shape[1]):
-        dim_name = 'tSNE_' + str(i)
-        tSNE_col_names.append(dim_name)
-        i += 1
+    tSNE_col_names = ['tSNE_' + str(i+1) for i in range(t.shape[1])]
     t.columns = tSNE_col_names
     return t
 
 
 def plot_tsne(df, hover_data, color, title, template, height=None, width=None, auto_size=True):
     param_len = df.filter(regex='tSNE_').shape[1]
-
     if param_len == 2:
         fig = px.scatter(df,
                          x='tSNE_1',
@@ -266,8 +248,7 @@ def plot_tsne(df, hover_data, color, title, template, height=None, width=None, a
                          color_continuous_scale=['blue', 'lightgray', 'red'],
                          color_discrete_map={'GREEN': 'green',
                                              'YELLOW': 'gold',
-                                             'RED': 'red'
-                                             },
+                                             'RED': 'red'},
                          color_discrete_sequence=px.colors.qualitative.G10)
     else:
         fig = px.scatter_3d(df,
@@ -280,13 +261,10 @@ def plot_tsne(df, hover_data, color, title, template, height=None, width=None, a
                             color_continuous_scale=['blue', 'lightgray', 'red'],
                             color_discrete_map={'GREEN': 'green',
                                                 'YELLOW': 'gold',
-                                                'RED': 'red'
-                                                },
+                                                'RED': 'red'},
                             color_discrete_sequence=px.colors.qualitative.G10)
-
     fig.update_layout(autosize=auto_size,
                       height=height,
                       width=width,
                       template=template)
-    #fig.show()
     return fig
