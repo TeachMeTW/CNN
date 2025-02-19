@@ -13,7 +13,7 @@ import json
 import pickle
 import base64
 
-# Import your ML modules and database utilities
+# Import ML modules and database utilities
 import ml.AE_tools as AE_tools
 from ml.AE import AutoEncoder
 from db_utils.db import db, create_document, read_documents
@@ -134,13 +134,14 @@ with tabs[0]:
             help="For example, select 'sensor_data' if that is your CSV-equivalent collection."
         )
         if st.button("Load Data", key="load_data"):
-            data = load_data_from_db(selected_collection)
+            with st.spinner("Loading data from database..."):
+                data = load_data_from_db(selected_collection)
             if data is not None:
                 st.session_state.df = data
                 st.session_state.df_copy = data.copy()
                 st.session_state.source_collection = selected_collection
-                TIMESTAMP = "ts"  # Adjust if your timestamp field is named differently.
-                ID_COL = "device" # Adjust if your device identifier field is named differently.
+                TIMESTAMP = "ts"  # Adjust if timestamp field is named differently.
+                ID_COL = "device" # Adjust if device identifier field is named differently.
                 st.session_state.CONTEXT = [TIMESTAMP, ID_COL]
                 st.session_state.df[ID_COL] = st.session_state.df[ID_COL].astype(str)
                 st.session_state.FEATURES = [col for col in st.session_state.df.columns if col not in st.session_state.CONTEXT and col != "_id"]
@@ -270,9 +271,10 @@ with tabs[1]:
     st.subheader("Step 2: Data Exploration")
     st.info("Here you can review the loaded data. This step gives you an overview and a preview of your dataset.")
     if st.session_state.df is not None:
-        buf = io.StringIO()
-        st.session_state.df.info(buf=buf)
-        df_info_str = buf.getvalue()
+        with st.spinner("Gathering dataset overview..."):
+            buf = io.StringIO()
+            st.session_state.df.info(buf=buf)
+            df_info_str = buf.getvalue()
         st.write("**Dataset Overview:**")
         st.text(df_info_str)
         st.write("**Data Preview (first 50 rows):**")
@@ -285,13 +287,14 @@ with tabs[1]:
             help="For example, choose 'temperature' to see its distribution."
         )
         if chosen_col:
-            fig_dist = px.histogram(
-                st.session_state.df,
-                x=chosen_col,
-                nbins=50,
-                title=f"Distribution of {chosen_col}",
-                template="ggplot2"
-            )
+            with st.spinner("Plotting histogram..."):
+                fig_dist = px.histogram(
+                    st.session_state.df,
+                    x=chosen_col,
+                    nbins=50,
+                    title=f"Distribution of {chosen_col}",
+                    template="ggplot2"
+                )
             st.plotly_chart(fig_dist, use_container_width=True)
     else:
         st.info("Please load data from the Configuration tab first.")
@@ -309,11 +312,12 @@ with tabs[2]:
             st.write("**Training History:**")
             if st.session_state.history is not None:
                 st.dataframe(st.session_state.history.head())
-                fig_loss = AE_tools.plot_loss(
-                    history=st.session_state.history,
-                    title="Training vs. Validation Loss",
-                    template="ggplot2"
-                )
+                with st.spinner("Plotting loss curves..."):
+                    fig_loss = AE_tools.plot_loss(
+                        history=st.session_state.history,
+                        title="Training vs. Validation Loss",
+                        template="ggplot2"
+                    )
                 st.plotly_chart(fig_loss, use_container_width=True)
             else:
                 st.write("No training history available.")
@@ -339,20 +343,22 @@ with tabs[2]:
             else:
                 st.warning("Training data not available. Using full dataset for threshold calculation.")
                 train_data = st.session_state.df.copy()
-            train_recon, threshold_val = AE_tools.calculate_error_threshold(
-                auto_encoder=st.session_state.model,
-                train_data=train_data,
-                features=st.session_state.FEATURES,
-                percentile=st.session_state.ERROR_THRESHOLD
-            )
+            with st.spinner("Calculating anomaly threshold..."):
+                train_recon, threshold_val = AE_tools.calculate_error_threshold(
+                    auto_encoder=st.session_state.model,
+                    train_data=train_data,
+                    features=st.session_state.FEATURES,
+                    percentile=st.session_state.ERROR_THRESHOLD
+                )
             st.write(f"**Anomaly Threshold:** {threshold_val}")
-            fig_dist_err = px.histogram(
-                st.session_state.df_copy,
-                x="reconstruction_error",
-                nbins=100,
-                title="Distribution of Reconstruction Errors",
-                template="ggplot2"
-            )
+            with st.spinner("Plotting reconstruction error distribution..."):
+                fig_dist_err = px.histogram(
+                    st.session_state.df_copy,
+                    x="reconstruction_error",
+                    nbins=100,
+                    title="Distribution of Reconstruction Errors",
+                    template="ggplot2"
+                )
             st.plotly_chart(fig_dist_err, use_container_width=True)
             if st.session_state.latent_space.shape[1] >= 2:
                 st.write("**Latent Space Visualization:**")
@@ -361,13 +367,14 @@ with tabs[2]:
                     options=[st.session_state.CONTEXT[1], "reconstruction_error"] + st.session_state.FEATURES,
                     help="For example, select 'reconstruction_error' to see how errors vary in the latent space."
                 )
-                fig_lat = AE_tools.plot_latent_space(
-                    data_frame=st.session_state.df_copy,
-                    color=color_overlay,
-                    hover_data=st.session_state.CONTEXT,
-                    title=f"Latent Space with {color_overlay} Overlay",
-                    template="ggplot2"
-                )
+                with st.spinner("Plotting latent space..."):
+                    fig_lat = AE_tools.plot_latent_space(
+                        data_frame=st.session_state.df_copy,
+                        color=color_overlay,
+                        hover_data=st.session_state.CONTEXT,
+                        title=f"Latent Space with {color_overlay} Overlay",
+                        template="ggplot2"
+                    )
                 st.plotly_chart(fig_lat, use_container_width=True)
             else:
                 st.info("Latent space has fewer than 2 dimensions; skipping visualization.")
@@ -386,12 +393,13 @@ with tabs[3]:
         else:
             st.warning("Training data not available. Using full dataset for threshold calculation.")
             train_data = st.session_state.df.copy()
-        _, threshold_val = AE_tools.calculate_error_threshold(
-            auto_encoder=st.session_state.model,
-            train_data=train_data,
-            features=st.session_state.FEATURES,
-            percentile=st.session_state.ERROR_THRESHOLD
-        )
+        with st.spinner("Calculating anomaly threshold..."):
+            _, threshold_val = AE_tools.calculate_error_threshold(
+                auto_encoder=st.session_state.model,
+                train_data=train_data,
+                features=st.session_state.FEATURES,
+                percentile=st.session_state.ERROR_THRESHOLD
+            )
         st.write(f"**Anomaly Threshold:** {threshold_val}")
         anomalies = st.session_state.df_copy[st.session_state.df_copy["reconstruction_error"] > threshold_val]
         st.write(f"**Number of Anomalies:** {anomalies.shape[0]} out of {st.session_state.df_copy.shape[0]} records")
@@ -409,17 +417,19 @@ with tabs[3]:
             for device in device_list:
                 device_data = st.session_state.df_copy[st.session_state.df_copy[ID_COL] == device].reset_index(drop=True)
                 title = f"Reconstruction Error Over Time: {device}"
-                fig_eot = AE_tools.plot_error_over_time(
-                    df=device_data,
-                    timestamp_col=TIMESTAMP,
-                    id_col=ID_COL,
-                    title=title,
-                    template="ggplot2",
-                    color_overlay="reconstruction_error",
-                    error_threshold=threshold_val
-                )
+                with st.spinner(f"Plotting error over time for {device}..."):
+                    fig_eot = AE_tools.plot_error_over_time(
+                        df=device_data,
+                        timestamp_col=TIMESTAMP,
+                        id_col=ID_COL,
+                        title=title,
+                        template="ggplot2",
+                        color_overlay="reconstruction_error",
+                        error_threshold=threshold_val
+                    )
                 st.plotly_chart(fig_eot, use_container_width=True)
         else:
             st.info("Select at least one device to view error trends.")
     else:
         st.info("Reconstruction error data not available. Please train a model in the Configuration tab.")
+

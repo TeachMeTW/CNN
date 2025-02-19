@@ -19,11 +19,9 @@ WORKDIR /app
 
 # Copy only the requirements files
 COPY requirements.txt .
-COPY ml/requirements.txt ./ml/
 
 RUN pip install --upgrade pip setuptools wheel \
-    && pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir -r ./ml/requirements.txt
+    && pip install -r requirements.txt
 
 # Stage 2: Final Stage
 FROM python:3.11-slim
