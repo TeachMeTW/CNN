@@ -27,25 +27,23 @@ jobs:
         shell: bash
         run: |
           git fetch --prune --unshallow || true
-          echo "build_needed=true" >> $GITHUB_OUTPUT
           
-          # Uncomment and adjust the following if/else logic as needed:
-          # previous_commit=${{ github.event.before }}
-          # current_commit=${{ github.sha }}
-          #
-          # if [[ "$previous_commit" == "0000000000000000000000000000000000000000" ]]; then
-          #   echo "No previous commit (new branch/initial commit). Forcing build."
-          #   echo "build_needed=true" >> $GITHUB_OUTPUT
-          # else
-          #   echo "Comparing changes from $previous_commit to $current_commit"
-          #   if git diff --name-only $previous_commit $current_commit | grep -q -E '^(Dockerfile|requirements\.txt)$'; then
-          #     echo "Changes in Dockerfile/requirements.txt found."
-          #     echo "build_needed=true" >> $GITHUB_OUTPUT
-          #   else
-          #     echo "No changes detected in Dockerfile or requirements.txt."
-          #     echo "build_needed=false" >> $GITHUB_OUTPUT
-          #   fi
-          # fi
+          previous_commit=${{ github.event.before }}
+          current_commit=${{ github.sha }}
+          
+          if [[ "$previous_commit" == "0000000000000000000000000000000000000000" ]]; then
+            echo "No previous commit (new branch/initial commit). Forcing build."
+            echo "build_needed=true" >> $GITHUB_OUTPUT
+          else
+            echo "Comparing changes from $previous_commit to $current_commit"
+            if git diff --name-only $previous_commit $current_commit | grep -q -E '^(Dockerfile|requirements\.txt)$'; then
+              echo "Changes in Dockerfile/requirements.txt found."
+              echo "build_needed=true" >> $GITHUB_OUTPUT
+            else
+              echo "No changes detected in Dockerfile or requirements.txt."
+              echo "build_needed=false" >> $GITHUB_OUTPUT
+            fi
+          fi
 
       # -------------------------------------------------------------
       # (3) Set up Docker Buildx
@@ -102,34 +100,42 @@ jobs:
               ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             set -euxo pipefail
             echo "Starting deployment on Amazon Linux EC2..."
+
             # 1) Ensure Docker is running
             sudo systemctl enable docker
             sudo systemctl start docker
+
             # 2) Remove old repo
             rm -rf CNN
+
             # 3) Clone the repo to get docker-compose.yml
             git clone https://github.com/TeachMeTW/CNN.git CNN
             cd CNN
+
             # 4) Decode .env (base64)
             echo "${{ secrets.DOTENV_FILE }}" | base64 -d > .env
             cp ~/CNN/.env ~/.env
             # 5) docker-compose down - remove old containers that might hold port 8501
             sudo docker-compose down -v || true
+
             # 6) Pull prebuilt images (robinttw/streamlit:latest & mongo)
             sudo docker-compose pull
+
             # 7) Up in detached mode
             sudo docker-compose up -d
+
             # 8) Health check
             sleep 10
             if ! curl -f http://localhost:8501; then
               echo "Health check failed!"
               exit 1
             fi
+
             echo "Deployment done with prebuilt image!"
           EOF
 
   ########################################################################
-  # Job 3: Configure Nginx as Reverse Proxy for cisconeural.net with HTTPS
+  # Job 3: Configure Nginx as Reverse Proxy for cisconeural.net
   ########################################################################
   configure-nginx:
     runs-on: ubuntu-latest
@@ -147,16 +153,15 @@ jobs:
             set -euxo pipefail
             echo "Configuring Nginx on Amazon Linux EC2..."
             
-            # 1) Backup the default Nginx configuration if it exists
+            # 1) Move default Nginx config
             sudo mv /etc/nginx/conf.d/default.conf /etc/nginx/conf.d/default.conf.bak 2>/dev/null || true
-      
-            # 2) Deploy the custom Nginx configuration from secret.
-            # Ensure that your NGINX_CONFIG secret contains the updated configuration (see below).
+
+            # 2) Deploy your custom NGINX_CONFIG from secret
             echo '${{ secrets.NGINX_CONFIG }}' | sudo tee /etc/nginx/conf.d/streamlit.conf
-      
-            # 3) Validate the Nginx configuration and restart the service
+
+            # 3) Validate & restart Nginx
             sudo nginx -t
             sudo systemctl restart nginx
-      
-            echo "Done configuring Nginx with HTTPS support for Streamlit."
+
+            echo "Done configuring Nginx for Streamlit."
           EOF
