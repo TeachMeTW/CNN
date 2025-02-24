@@ -31,11 +31,12 @@ def main():
           </ul>
         </li>
         <li>
-          <a style="color: #1a73e8;" href="#machine-learning">Machine Learning</a>
+          <a style="color: #1a73e8;" href="#model-selection">Model Selection</a>
           <ul>
             <li><a style="color: #1a73e8;" href="#model-configuration-and-training">Model Configuration and Training</a></li>
-            <li><a style="color: #1a73e8;" href="#data-exploration-and-visualization">Data Exploration and Visualization</a></li>
-            <li><a style="color: #1a73e8;" href="#anomaly-detection">Anomaly Detection</a></li>
+            <li><a style="color: #1a73e8;" href="#data-exploration">Data Exploration</a></li>
+            <li><a style="color: #1a73e8;" href="#result-and-visualization">Results and Visualization</a></li>
+            <li><a style="color: #1a73e8;" href="#anomaly-detection">Anomalies</a></li>
           </ul>
         </li>
         <li><a style="color: #1a73e8;" href="#installation-and-setup">Installation and Setup</a></li>
@@ -54,17 +55,17 @@ def main():
     anchored_heading(2, "Overview", "overview")
     st.markdown("""
     <p>
-      The <strong>IoT Data Management & AutoEncoder Dashboard</strong> is a user‑friendly tool designed to help you manage your IoT sensor data and detect anomalies using machine learning.
+      This <strong>IoT Data Management & AutoEncoder Dashboard</strong> is a user‑friendly tool designed to help you manage and detect anomalies in your IoT sensor data using machine learning.
     </p>
     <p>
       The dashboard has two main parts:
     </p>
     <ul>
-      <li><strong>Data Management:</strong> Easily upload data, edit records, and view clear statistics and visualizations.</li>
+      <li><strong>Data Management:</strong> Easily upload data, modify existing entries, and view clear statistics and visualizations.</li>
       <li><strong>Machine Learning:</strong> Set up and train an AutoEncoder model to spot unusual sensor behavior.</li>
     </ul>
     <p>
-      This guide explains every feature in plain language so that even if you’re not technical, you can use the system with confidence.
+      This guide explains every feature in plain language, so even if you’re not technical, you can use the system with confidence.
     </p>
     """, unsafe_allow_html=True)
     st.markdown("<hr>", unsafe_allow_html=True)
@@ -73,9 +74,9 @@ def main():
     # DATA MANAGEMENT SECTION
     # ----------------------------
     anchored_heading(2, "Data Management", "data-management")
-    st.markdown("""
+    st.markdown(""" 
     <p>
-      The Data Management section helps you handle your IoT data without any hassle. Whether you’re adding new data or updating existing records, everything is designed to be simple and straightforward.
+      The Data Management tab in the navigation bar on the left helps you handle your IoT data without any hassle. Whether you’re adding new data or updating existing data, everything is designed to be simple and straightforward.
     </p>
     """, unsafe_allow_html=True)
 
@@ -85,12 +86,42 @@ def main():
     <p>
       <strong>Purpose:</strong> Quickly import your CSV files into the dashboard.
     </p>
+
+    <p>
+      <strong>How to Upload a CSV:</strong>
+    </p>
+    <ol>
+      <li><strong>Navigate to the CSV Upload Button:</strong>
+        <ul>
+          <li>Use the <strong>navigation bar on the left</strong> and click on <strong>Data Management</strong>.</li>
+          <li>Within the <strong>Upload & Edit Data</strong> tab, find the <strong>CSV Uploader</strong> subtitle.</li>
+        </ul>
+      </li>
+      <li><strong>Upload Your File:</strong>
+        <ul>
+          <li>Click the <strong>Upload CSV</strong> button.</li>
+          <li>Select your CSV file from your device.</li>
+          <li>After uploading, the dashboard will display a preview of the first few rows.</li>
+        </ul>
+      </li>
+      <li><strong>Confirm & Import:</strong>
+        <ul>
+          <li>Review the previewed data.</li>
+          <li>If everything looks correct, click <strong>Confirm Upload</strong> to add the data to your database.</li>
+        </ul>
+      </li>
+    </ol>
+
+    <p>
+      <strong>Features:</strong>
+    </p>
     <ul>
-      <li><strong>Preview Your Data:</strong> Check the first few rows of your file to make sure it looks correct.</li>
+      <li><strong>Preview Before Upload:</strong> Ensure your CSV is formatted correctly before committing changes.</li>
       <li><strong>Easy Import:</strong> Once you confirm, the data is automatically added to your database.</li>
     </ul>
+
     <p>
-      <strong>Ideal For:</strong> Anyone with sensor data stored in CSV format who wants a no-fuss way to get that data into the system.
+      <strong>Ideal For:</strong> Anyone with sensor data stored in CSV format who wants a simple way to import data into the system.
     </p>
     """, unsafe_allow_html=True)
 
@@ -100,14 +131,21 @@ def main():
     <p>
       <strong>Purpose:</strong> Edit your data directly within the application.
     </p>
+    <p>
+      <strong>Locate:</strong> The Manual Document Editor is right below the CVS Uploader, which is located within the Data Management tab on the navigation bar on the left. 
+    </p>
     <ul>
-      <li><strong>Update Records Easily:</strong> Change data, add new entries, or delete old ones with just a few clicks.</li>
-      <li><strong>No Technical Jargon:</strong> Everything is done through a simple table—no complex database commands required.</li>
+      <li><strong>Edit Existing Entries:</strong> Simply click on any data cell to modify its value immediately.</li>
+      <li><strong>Add New Entries:</strong> To add data, click on an empty cell in the table and type in your new value.</li>
+      <li><strong>Delete Entries:</strong> Each row has a delete button on the right side. Click it to remove the entry, then click "Save Changes" to confirm the deletion.</li>
+      <li><strong>No Technical Jargon:</strong> Everything is managed through an intuitive table interface—no complex commands required.</li>
     </ul>
     <p>
       <strong>Ideal For:</strong> Users who need to fix or update data without writing any code.
     </p>
     """, unsafe_allow_html=True)
+
+
 
     # Advanced Collection Management
     anchored_heading(3, "Advanced Collection Management", "advanced-collection-management")
@@ -131,6 +169,9 @@ def main():
     <p>
       <strong>Purpose:</strong> Visualize and understand your sensor data.
     </p>
+    <p>
+      <strong>Locate:</strong> At the top of the Data Management page, you will see two tabs. Click on the tab labeled 'Data Explorer.' 
+    </p>
     <ul>
       <li><strong>Latest Readings:</strong> Quickly check the most recent data for each sensor.</li>
       <li><strong>Detailed Analysis:</strong> Look at statistics (like minimum, maximum, and average values) for any sensor parameter.</li>
@@ -144,33 +185,54 @@ def main():
     st.markdown("<hr>", unsafe_allow_html=True)
 
     # ----------------------------
-    # MACHINE LEARNING SECTION
+    # MODEL SELECTION SECTION
     # ----------------------------
-    anchored_heading(2, "Machine Learning", "machine-learning")
+    anchored_heading(2, "Model Selection", "machine-learning")
     st.markdown("""
     <p>
       The Machine Learning section guides you through setting up and using an AutoEncoder model to detect anomalies in your data.
     </p>
+    <p>
+      <strong>Locate: </strong> In the navigation bar on the left, click the Model Selection tab.
+    </p>
+    <p>
+      <strong>Information: </strong>There are 4 tabs at the top of the Model Selection Page. Keep reading to learn how to use each tab. 
+    </p>
     """, unsafe_allow_html=True)
 
-    # Model Configuration and Training
-    anchored_heading(3, "Model Configuration and Training", "model-configuration-and-training")
+    # Model Configuration and Training 
+    anchored_heading(3, "1st Tab: Configuration", "model-configuration-and-training")
     st.markdown("""
     <p>
       <strong>Purpose:</strong> Prepare and train an AutoEncoder model.
     </p>
+    
     <ul>
       <li><strong>Select Your Devices:</strong> Choose which sensor data should be used for training.</li>
       <li><strong>Adjust Settings:</strong> Tweak options such as the number of neurons, dropout rates, and training time.</li>
-      <li><strong>Train the Model:</strong> The system learns what “normal” looks like by compressing your data into a simpler form.</li>
+      <li><strong>Train the Model:</strong> The system learns what “normal” looks like by compressing your data into a simpler form. Once you've adjusted the settings to your liking, click the <strong>Train New Model </strong> button to start the training process.</li>
     </ul>
     <p>
       <strong>Ideal For:</strong> Users who want a clear, step-by-step process to set up and train a machine learning model.
     </p>
     """, unsafe_allow_html=True)
 
-    # Data Exploration and Visualization in ML
-    anchored_heading(3, "Data Exploration and Visualization", "data-exploration-and-visualization")
+    # Data Exploration in ML 
+    anchored_heading(3, "2nd Tab: Data Exploration", "data-exploration-and-visualization")
+    st.markdown("""
+    <p>
+      <strong>Purpose:</strong> Ensure the data you loaded is as expected.
+    </p>
+    <ul>
+      <li><strong>Review </strong>In this tab, you can preview your dataset and make sure it looks like it is supposed to.</li>
+    </ul>
+    <p>
+      <strong>Ideal For:</strong> Users interested in ensuring the model is working correctly and understanding its behavior.
+    </p>
+    """, unsafe_allow_html=True)
+
+    # Results and Visualization in ML
+    anchored_heading(3, "3rd Tab: Results & Visualization", "data-exploration-and-visualization")
     st.markdown("""
     <p>
       <strong>Purpose:</strong> See how well the model is performing.
@@ -186,7 +248,7 @@ def main():
     """, unsafe_allow_html=True)
 
     # Anomaly Detection
-    anchored_heading(3, "Anomaly Detection", "anomaly-detection")
+    anchored_heading(3, "4th Tab: Anomalies", "anomaly-detection")
     st.markdown("""
     <p>
       <strong>Purpose:</strong> Identify data points that do not follow the normal pattern.
@@ -208,20 +270,49 @@ def main():
     anchored_heading(2, "Installation and Setup", "installation-and-setup")
     st.markdown("""
     <p>
-      Getting started is simple:
+      To use this dashboard locally, follow the steps below. Getting started is simple:
     </p>
+
     <ol>
-      <li><strong>Clone the Repository:</strong> Download the source code to your computer.</li>
-      <li><strong>Set Up Environment Variables:</strong> Create a <code>.env</code> file and enter your settings (like database details).</li>
-      <li><strong>Run the Application:</strong> Use the provided <code>run.sh</code> script or run it directly with:
-        <br><code>streamlit run app.py</code>
+      <li>
+        <strong>Clone the Repository:</strong> Download <a href="https://github.com/TeachMeTW/CNN" style="color: #1a73e8;">this</a> source code to your computer. 
+        <ul>
+          <li>For directions on how to clone a GitHub repository, see the <a href="https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository" style="color: #1a73e8;">GitHub Cloning Guide</a>.</li>
+        </ul>
+        
+      </li>
+
+      <li>
+        <strong>Set Up Environment Variables (if running locally):</strong>  
+        If you are using the hosted version at <a href="https://cisconeural.net" style="color: #1a73e8;">cisconeural.net</a>, you can skip this step.
+        Otherwise, create a <code>.env</code> file in the project root directory and add your settings:
+        <pre><code>MONGO_URI=mongodb://localhost:27017/mydatabase
+    SECRET_KEY=your_secret_key
+    DEBUG=True</code></pre>
+      </li>
+
+      <li>
+        <strong>Install Dependencies:</strong>  
+        Run the following command to install required Python libraries:
+        <pre><code>pip install -r requirements.txt</code></pre>
+      </li>
+
+      <li>
+        <strong>Run the Application:</strong>  
+        Use the provided <code>run.sh</code> script:
+        <pre><code>./run.sh</code></pre>
+        Or manually start the app with:
+        <pre><code>streamlit run app.py</code></pre>
       </li>
     </ol>
+
     <p>
-      <strong>Note:</strong> Make sure your MongoDB server is running and that you have installed all the necessary Python libraries (listed in <code>requirements.txt</code>).
+      <strong>Note:</strong> Ensure your MongoDB server is running before launching the application.
     </p>
     """, unsafe_allow_html=True)
-    st.markdown("<hr>", unsafe_allow_html=True)
+
+
+
 
     # ----------------------------
     # FUTURE ENHANCEMENTS SECTION
