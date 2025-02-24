@@ -6,72 +6,42 @@ on:
   workflow_dispatch:
 
 jobs:
-  ########################################################################
-  # Job 1: Conditionally Build & Push Docker Image
-  ########################################################################
   build-and-push:
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
     steps:
-      # -------------------------------------------------------------
-      # (1) Check out the repository
-      # -------------------------------------------------------------
       - name: Check out code
         uses: actions/checkout@v3
 
-      # -------------------------------------------------------------
-      # (2) Determine if Docker build is needed
-      # -------------------------------------------------------------
       - name: Check if Docker build is needed
         id: docker-check
         shell: bash
         run: |
           git fetch --prune --unshallow || true
-          
-          previous_commit=${{ github.event.before }}
-          current_commit=${{ github.sha }}
-          
-          if [[ "$previous_commit" == "0000000000000000000000000000000000000000" ]]; then
-            echo "No previous commit (new branch/initial commit). Forcing build."
-            echo "build_needed=true" >> $GITHUB_OUTPUT
-          else
-            echo "Comparing changes from $previous_commit to $current_commit"
-            if git diff --name-only $previous_commit $current_commit | grep -q -E '^(Dockerfile|requirements\.txt)$'; then
-              echo "Changes in Dockerfile/requirements.txt found."
-              echo "build_needed=true" >> $GITHUB_OUTPUT
-            else
-              echo "No changes detected in Dockerfile or requirements.txt."
-              echo "build_needed=false" >> $GITHUB_OUTPUT
-            fi
-          fi
+          echo "build_needed=true" >> $GITHUB_OUTPUT
 
-      # -------------------------------------------------------------
-      # (3) Set up Docker Buildx
-      # -------------------------------------------------------------
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      # -------------------------------------------------------------
-      # (4) Log in to Docker Hub
-      # -------------------------------------------------------------
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # -------------------------------------------------------------
-      # (5) Build & push Docker image
-      # -------------------------------------------------------------
-      - name: Build and Push Docker image
+      - name: Build and Push Docker image for ${{ matrix.arch }}
         if: steps.docker-check.outputs.build_needed == 'true'
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:latest
+          platforms: linux/${{ matrix.arch }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamlit:${{ matrix.arch }}-latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
 
   ########################################################################
   # Job 2: Deploy Docker Container on Amazon Linux (EC2) via SSH

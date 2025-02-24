@@ -2,6 +2,7 @@ services:
   streamlit:
     image: "robinttw/streamlit:latest"
     container_name: "streamlit_app"
+    build: .
 
     # If STREAMLIT_PORT is not set, default to 8501
     ports:
@@ -9,7 +10,8 @@ services:
 
     env_file:
       - .env
-
+    volumes:
+      - ./:/app 
     depends_on:
       - mongo
 

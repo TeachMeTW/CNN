@@ -66,7 +66,7 @@ class AutoEncoder(object):
         for n in encoder_neuron:
             if n == input_dim:
                 # input layer
-                input_layer = Input(shape=n)
+                input_layer = Input(shape=(n,))
                 autoencoder.add(input_layer)
                 autoencoder.add(Dense(n,
                                       activation=activation_function,
@@ -139,7 +139,7 @@ class AutoEncoder(object):
                                 metrics=["acc"])
         except Exception as e:
             logging.info(f'Failed to Compile:\n{e}')
-            pass
+            raise e
         return autoencoder
 
     def loggingAutoEncoder(self, autoencoder, batch_size):

@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import os
+import datetime
 from dotenv import load_dotenv
 
 # Import the shared db and CRUD functions from your db_utils module
@@ -15,7 +16,8 @@ load_dotenv()
 # =============================================================================
 def select_box(collection, key_prefix):
     """Show a selectbox for choosing a parameter from a sample document."""
-    sample_document = collection.find_one()
+    with st.spinner("Fetching sample document..."):
+        sample_document = collection.find_one()
     if sample_document:
         columns = list(sample_document.keys())
         # Remove keys that are less useful for parameter analysis
@@ -35,71 +37,106 @@ def calculate_stats(collection, parameter):
     """Calculate basic statistics (min, max, avg) for a given parameter per device."""
     devices = collection.distinct("device")
     stats = {}
-    for device in devices:
-        readings = list(collection.find({"device": device}, {parameter: 1, "_id": 0}))
-        parameter_values = [reading[parameter] for reading in readings if parameter in reading]
-        if parameter_values:
-            # For booleans, calculate the frequency of True values.
-            if isinstance(parameter_values[0], bool):
-                return calculate_frequencies(collection, parameter)
-            stats[device] = {
-                "min": min(parameter_values),
-                "max": max(parameter_values),
-                "avg": sum(parameter_values) / len(parameter_values),
-            }
-        else:
-            stats[device] = {"min": None, "max": None, "avg": None}
+    with st.spinner("Calculating statistics..."):
+        for device in devices:
+            readings = list(collection.find({"device": device}, {parameter: 1, "_id": 0}))
+            parameter_values = [reading[parameter] for reading in readings if parameter in reading]
+            if parameter_values:
+                # For booleans, calculate the frequency of True values.
+                if isinstance(parameter_values[0], bool):
+                    return calculate_frequencies(collection, parameter)
+                stats[device] = {
+                    "min": min(parameter_values),
+                    "max": max(parameter_values),
+                    "avg": sum(parameter_values) / len(parameter_values),
+                }
+            else:
+                stats[device] = {"min": None, "max": None, "avg": None}
     return stats
 
 def calculate_frequencies(collection, parameter):
     """Calculate the frequency (ratio of True values) for a boolean parameter per device."""
     devices = collection.distinct("device")
     frequencies = {}
-    for device in devices:
-        readings = list(collection.find({"device": device}, {parameter: 1, "_id": 0}))
-        parameter_values = [reading[parameter] for reading in readings if parameter in reading]
-        if parameter_values:
-            total = len(parameter_values)
-            count = sum(1 for val in parameter_values if val)
-            frequencies[device] = {"frequency": count / total}
-        else:
-            frequencies[device] = {"frequency": None}
+    with st.spinner("Calculating frequencies..."):
+        for device in devices:
+            readings = list(collection.find({"device": device}, {parameter: 1, "_id": 0}))
+            parameter_values = [reading[parameter] for reading in readings if parameter in reading]
+            if parameter_values:
+                total = len(parameter_values)
+                count = sum(1 for val in parameter_values if val)
+                frequencies[device] = {"frequency": count / total}
+            else:
+                frequencies[device] = {"frequency": None}
     return frequencies
 
+def convert_to_iso(ts_value):
+    """Converts a timestamp value to an ISO-formatted string.
+    
+    If the value is numeric, it's treated as a Unix timestamp.
+    Otherwise, it is parsed as a datetime string.
+    """
+    try:
+        # If it's numeric, convert from Unix timestamp
+        if isinstance(ts_value, (int, float)):
+            return datetime.datetime.fromtimestamp(ts_value).isoformat()
+        # Otherwise, try to parse it (if it's already a string in datetime format, this should work)
+        dt = pd.to_datetime(ts_value, errors='coerce')
+        if pd.notnull(dt):
+            return dt.isoformat()
+    except Exception as e:
+        st.error(f"Error converting timestamp: {e}")
+    # Fallback: return original value if conversion fails.
+    return ts_value
+
 def get_latest_readings(collection):
-    """Return the latest document (by timestamp) for each device."""
+    """Return the latest document (by timestamp) for each device with ts as ISO datetime."""
     devices = collection.distinct("device")
     latest_readings = []
-    for device in devices:
-        latest = collection.find_one({"device": device}, sort=[("ts", -1)])
-        if latest:
-            latest_readings.append(latest)
+    with st.spinner("Fetching latest readings for each device..."):
+        for device in devices:
+            latest = collection.find_one({"device": device}, sort=[("ts", -1)])
+            if latest and "ts" in latest:
+                latest["ts"] = convert_to_iso(latest["ts"])
+                latest_readings.append(latest)
     return latest_readings
 
 def get_time_vs_parameter(collection, parameter):
-    """Return a sorted list of documents containing time, device, and the specified parameter."""
+    """
+    Return a sorted list of documents containing time, device, and the specified parameter.
+    The time field is converted to an ISO datetime string.
+    """
     try:
-        readings = list(
-            collection.find(
-                {parameter: {"$exists": True}},
-                {"ts": 1, parameter: 1, "device": 1, "_id": 0},
+        with st.spinner("Fetching time-series data..."):
+            readings = list(
+                collection.find(
+                    {parameter: {"$exists": True}},
+                    {"ts": 1, parameter: 1, "device": 1, "_id": 0},
+                )
             )
-        )
-        tvp_table = [
-            {"time": reading["ts"], "device": reading["device"], parameter: reading[parameter]}
-            for reading in readings
-        ]
+        tvp_table = []
+        for reading in readings:
+            if "ts" in reading:
+                iso_time = convert_to_iso(reading["ts"])
+                tvp_table.append(
+                    {"time": iso_time, "device": reading["device"], parameter: reading[parameter]}
+                )
         tvp_table.sort(key=lambda x: x["time"])
         return tvp_table
     except Exception as e:
         st.error(f"Error fetching time vs parameter data: {e}")
         return []
 
+
 # =============================================================================
 # Application Functions
 # =============================================================================
 def csv_uploader():
-    """Upload a CSV and insert its rows into a MongoDB collection."""
+    """Upload a CSV and insert its rows into a MongoDB collection.
+    
+    If the CSV contains a 'ts' or 'timeseries' column, that column is converted into
+    an ISO formatted datetime string.
+    """
     st.subheader("CSV Uploader")
     collections = db.list_collection_names()
     if collections:
@@ -109,13 +146,32 @@ def csv_uploader():
     csv_file = st.file_uploader("Upload CSV", type="csv", key="csv_file")
     if csv_file is not None:
         try:
-            df = pd.read_csv(csv_file)
+            with st.spinner("Reading CSV file..."):
+                df = pd.read_csv(csv_file)
             st.write("CSV Preview:")
             st.dataframe(df.head())
+
+            # Check for 'ts' or 'timeseries' column and convert if present.
+            for col in ["ts", "timeseries"]:
+                if col in df.columns:
+                    with st.spinner(f"Converting column '{col}' to ISO formatted datetime strings..."):
+                        # If the column is numeric, treat it as a Unix timestamp.
+                        if pd.api.types.is_numeric_dtype(df[col]):
+                            df[col] = pd.to_datetime(df[col], unit='s', errors='coerce')
+                        else:
+                            df[col] = pd.to_datetime(df[col], errors='coerce')
+                        # Convert to ISO formatted string.
+                        df[col] = df[col].apply(lambda dt: dt.isoformat() if pd.notnull(dt) else dt)
+                    st.info(f"Converted column '{col}' to ISO formatted datetime strings.")
+                    # Once converted, break so we don't process both columns.
+                    break
+
             if st.button("Upload CSV to MongoDB", key="upload_csv"):
-                records = df.to_dict(orient="records")
-                result = db[collection_name].insert_many(records)
+                with st.spinner("Uploading CSV data to MongoDB..."):
+                    records = df.to_dict(orient="records")
+                    result = db[collection_name].insert_many(records)
                 st.success(f"Inserted {len(result.inserted_ids)} documents into '{collection_name}'.")
+                st.rerun()
         except Exception as e:
             st.error(f"Error processing CSV file: {e}")
 
@@ -134,8 +190,8 @@ def manual_data_editor():
         
     if collection_name:
         try:
-            # Retrieve all documents from the collection.
-            docs = list(db[collection_name].find())
+            with st.spinner("Fetching documents from MongoDB..."):
+                docs = list(db[collection_name].find())
             if docs:
                 # Convert ObjectId values to strings for display/editing.
                 for doc in docs:
@@ -149,59 +205,62 @@ def manual_data_editor():
             if "Delete" not in df_original.columns:
                 df_original["Delete"] = False
 
+            st.info("Edit the table below. Use the 'Delete' column to mark a row for deletion.")
             # Display the editable table.
             edited_df = st.data_editor(df_original, num_rows="dynamic", key="data_editor")
 
             if st.button("Save Changes", key="save_changes"):
-                # Build a dictionary of the original rows keyed by _id.
-                original_dict = {}
-                for _, row in df_original.iterrows():
-                    _id_val = row["_id"]
-                    if pd.notna(_id_val) and _id_val != "":
-                        original_dict[str(_id_val)] = row.to_dict()
+                with st.spinner("Saving changes..."):
+                    # Build a dictionary of the original rows keyed by _id.
+                    original_dict = {}
+                    for _, row in df_original.iterrows():
+                        _id_val = row["_id"]
+                        if pd.notna(_id_val) and _id_val != "":
+                            original_dict[str(_id_val)] = row.to_dict()
 
-                # Build a set of _id values present in the edited table.
-                edited_ids = set()
-                for _, row in edited_df.iterrows():
-                    _id_val = row.get("_id")
-                    if pd.notna(_id_val) and _id_val != "":
-                        edited_ids.add(str(_id_val))
+                    # Build a set of _id values present in the edited table.
+                    edited_ids = set()
+                    for _, row in edited_df.iterrows():
+                        _id_val = row.get("_id")
+                        if pd.notna(_id_val) and _id_val != "":
+                            edited_ids.add(str(_id_val))
 
-                # Identify rows that were physically removed (i.e. deleted from the table).
-                missing_ids = set(original_dict.keys()) - edited_ids
+                    # Identify rows that were physically removed (i.e. deleted from the table).
+                    missing_ids = set(original_dict.keys()) - edited_ids
 
-                # Process each row in the edited table.
-                for _, row in edited_df.iterrows():
-                    row_dict = row.to_dict()
-                    delete_flag = row_dict.get("Delete", False)
-                    _id_val = row_dict.get("_id")
-                    if pd.isna(_id_val) or _id_val == "":
-                        # New row insertion (if not marked for deletion).
-                        if not delete_flag:
-                            new_doc = {k: v for k, v in row_dict.items() if k not in ["_id", "Delete"]}
-                            inserted_id = create_document(new_doc, collection_name)
-                            st.success(f"Inserted new document with id: {inserted_id}")
-                    else:
-                        _id_str = str(_id_val)
-                        if delete_flag:
-                            from bson import ObjectId
-                            delete_document({"_id": ObjectId(_id_str)}, collection_name)
-                            st.success(f"Deleted document with id: {_id_str}")
+                    # Process each row in the edited table.
+                    for _, row in edited_df.iterrows():
+                        row_dict = row.to_dict()
+                        delete_flag = row_dict.get("Delete", False)
+                        _id_val = row_dict.get("_id")
+                        if pd.isna(_id_val) or _id_val == "":
+                            # New row insertion (if not marked for deletion).
+                            if not delete_flag:
+                                new_doc = {k: v for k, v in row_dict.items() if k not in ["_id", "Delete"]}
+                                inserted_id = create_document(new_doc, collection_name)
+                                st.success(f"Inserted new document with id: {inserted_id}")
                         else:
-                            # Update only if data has changed.
-                            original_row = original_dict.get(_id_str, {})
-                            edited_data = {k: row_dict[k] for k in row_dict if k not in ["_id", "Delete"]}
-                            original_data = {k: original_row.get(k) for k in row_dict if k not in ["_id", "Delete"]}
-                            if edited_data != original_data:
+                            _id_str = str(_id_val)
+                            if delete_flag:
                                 from bson import ObjectId
-                                update_document({"_id": ObjectId(_id_str)}, edited_data, collection_name)
-                                st.success(f"Updated document with id: {_id_str}")
+                                delete_document({"_id": ObjectId(_id_str)}, collection_name)
+                                st.success(f"Deleted document with id: {_id_str}")
+                            else:
+                                # Update only if data has changed.
+                                original_row = original_dict.get(_id_str, {})
+                                edited_data = {k: row_dict[k] for k in row_dict if k not in ["_id", "Delete"]}
+                                original_data = {k: original_row.get(k) for k in row_dict if k not in ["_id", "Delete"]}
+                                if edited_data != original_data:
+                                    from bson import ObjectId
+                                    update_document({"_id": ObjectId(_id_str)}, edited_data, collection_name)
+                                    st.success(f"Updated document with id: {_id_str}")
 
-                # Process physical deletions (rows removed from the table).
-                for _id_str in missing_ids:
-                    from bson import ObjectId
-                    delete_document({"_id": ObjectId(_id_str)}, collection_name)
-                    st.success(f"Deleted document with id: {_id_str} (row removed)")
+                    # Process physical deletions (rows removed from the table).
+                    for _id_str in missing_ids:
+                        from bson import ObjectId
+                        delete_document({"_id": ObjectId(_id_str)}, collection_name)
+                        st.success(f"Deleted document with id: {_id_str} (row removed)")
+                st.rerun()
         except Exception as e:
             st.error(f"Error reading or updating documents: {e}")
 
@@ -221,12 +280,13 @@ def advanced_collection_management():
     # --- Delete Collection ---
     st.markdown("**Delete Collection**")
     col_to_delete = st.selectbox("Select a collection to delete", options=collections, key="delete_collection")
-    # Display the confirmation checkbox outside the button
     confirm = st.checkbox("Confirm deletion", key="delete_confirm")
     if st.button("Delete Collection", key="delete_btn"):
         if confirm:
-            db.drop_collection(col_to_delete)
+            with st.spinner("Deleting collection..."):
+                db.drop_collection(col_to_delete)
             st.success(f"Collection '{col_to_delete}' deleted.")
+            st.rerun()
         else:
             st.warning("Please confirm deletion by checking the box.")
 
@@ -238,18 +298,20 @@ def advanced_collection_management():
     target_collection = st.text_input("Target Collection Name", value="merged_collection", key="merge_target")
     if st.button("Merge Collections", key="merge_btn"):
         if merge_cols:
-            merged_docs = []
-            for col in merge_cols:
-                docs = list(db[col].find())
-                for doc in docs:
-                    # Remove _id to allow insertion into the target collection.
-                    doc.pop("_id", None)
-                    merged_docs.append(doc)
-            if merged_docs:
-                result = db[target_collection].insert_many(merged_docs)
-                st.success(f"Merged {len(result.inserted_ids)} documents into '{target_collection}'.")
-            else:
-                st.info("No documents found in selected collections.")
+            with st.spinner("Merging selected collections..."):
+                merged_docs = []
+                for col in merge_cols:
+                    docs = list(db[col].find())
+                    for doc in docs:
+                        # Remove _id to allow insertion into the target collection.
+                        doc.pop("_id", None)
+                        merged_docs.append(doc)
+                if merged_docs:
+                    result = db[target_collection].insert_many(merged_docs)
+                    st.success(f"Merged {len(result.inserted_ids)} documents into '{target_collection}'.")
+                else:
+                    st.info("No documents found in selected collections.")
+            st.rerun()
         else:
             st.warning("Please select at least one collection to merge.")
 
@@ -261,14 +323,16 @@ def advanced_collection_management():
     new_name = st.text_input("New Collection Name", key="rename_target")
     if st.button("Rename Collection", key="rename_btn"):
         if new_name:
-            docs = list(db[col_to_rename].find())
-            if docs:
-                # Remove _id from each document before inserting into the new collection.
-                for doc in docs:
-                    doc.pop("_id", None)
-                db[new_name].insert_many(docs)
-            db.drop_collection(col_to_rename)
+            with st.spinner("Renaming collection..."):
+                docs = list(db[col_to_rename].find())
+                if docs:
+                    # Remove _id from each document before inserting into the new collection.
+                    for doc in docs:
+                        doc.pop("_id", None)
+                    db[new_name].insert_many(docs)
+                db.drop_collection(col_to_rename)
             st.success(f"Renamed collection '{col_to_rename}' to '{new_name}'.")
+            st.rerun()
         else:
             st.warning("Please provide a new collection name.")
 
@@ -291,7 +355,8 @@ def combined_data_explorer():
 
         # --- Latest Readings ---
         st.markdown("#### Latest Readings by Device")
-        latest = get_latest_readings(collection)
+        with st.spinner("Loading latest readings..."):
+            latest = get_latest_readings(collection)
         if latest:
             st.dataframe(pd.DataFrame(latest), use_container_width=True)
         else:
@@ -301,21 +366,22 @@ def combined_data_explorer():
         st.markdown("#### Parameter Analysis")
         parameter = select_box(collection, "combined_param")
         if parameter:
-            # Display statistics for the selected parameter.
-            stats = calculate_stats(collection, parameter)
+            with st.spinner("Calculating parameter statistics..."):
+                stats = calculate_stats(collection, parameter)
             stats_df = pd.DataFrame.from_dict(stats, orient="index")
             st.markdown("**Statistics:**")
             st.dataframe(stats_df, use_container_width=True)
 
-            # Time-series data
-            tvp_table = get_time_vs_parameter(collection, parameter)
+            with st.spinner("Fetching time-series data..."):
+                tvp_table = get_time_vs_parameter(collection, parameter)
             if tvp_table:
                 tvp_df = pd.DataFrame(tvp_table)
                 st.markdown("**Time-Series Analysis:**")
+                # Convert the ISO datetime strings back to datetime objects for filtering
+                tvp_df["time"] = pd.to_datetime(tvp_df["time"])
                 latest_ts = tvp_df["time"].max()
                 earliest_ts = tvp_df["time"].min()
 
-                # Select time range.
                 time_range = st.radio(
                     "Select time range:",
                     options=["All time", "Last hour", "Last day", "Last week", "Custom Range"],
@@ -323,13 +389,13 @@ def combined_data_explorer():
                     key="combined_time_range",
                 )
                 if time_range == "Last hour":
-                    start = latest_ts - 3600
+                    start = latest_ts - pd.Timedelta(hours=1)
                     tvp_df = tvp_df[(tvp_df["time"] >= start) & (tvp_df["time"] <= latest_ts)]
                 elif time_range == "Last day":
-                    start = latest_ts - 86400
+                    start = latest_ts - pd.Timedelta(days=1)
                     tvp_df = tvp_df[(tvp_df["time"] >= start) & (tvp_df["time"] <= latest_ts)]
                 elif time_range == "Last week":
-                    start = latest_ts - 604800
+                    start = latest_ts - pd.Timedelta(weeks=1)
                     tvp_df = tvp_df[(tvp_df["time"] >= start) & (tvp_df["time"] <= latest_ts)]
                 elif time_range == "Custom Range":
                     start, end = st.slider(
@@ -337,11 +403,11 @@ def combined_data_explorer():
                         min_value=earliest_ts,
                         max_value=latest_ts,
                         value=(earliest_ts, latest_ts),
+                        format="YYYY-MM-DD HH:mm:ss",
                         key="combined_custom_range",
                     )
                     tvp_df = tvp_df[(tvp_df["time"] >= start) & (tvp_df["time"] <= end)]
 
-                # Filter by devices.
                 all_devices = tvp_df["device"].unique().tolist()
                 selected_devices = st.multiselect(
                     "Select devices to display:",
@@ -373,11 +439,14 @@ def combined_data_explorer():
         total_pages = (total_docs + batch_size - 1) // batch_size
         page = st.number_input("Select page", min_value=1, max_value=total_pages, step=1, value=1, key="combined_page_num")
         skip_count = (page - 1) * batch_size
-        cursor = db[collection_choice].find().skip(skip_count).limit(batch_size)
-        docs = list(cursor)
+        with st.spinner("Loading data table..."):
+            cursor = db[collection_choice].find().skip(skip_count).limit(batch_size)
+            docs = list(cursor)
         if docs:
             for doc in docs:
                 doc["_id"] = str(doc["_id"])
+                if "ts" in doc and isinstance(doc["ts"], (int, float)):
+                    doc["ts"] = datetime.datetime.fromtimestamp(doc["ts"]).isoformat()
             st.dataframe(pd.DataFrame(docs), use_container_width=True)
             st.write(f"Page {page} of {total_pages} (showing {batch_size} documents per page).")
         else:
