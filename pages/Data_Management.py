@@ -139,10 +139,27 @@ def csv_uploader():
     """
     st.subheader("CSV Uploader")
     collections = db.list_collection_names()
-    if collections:
-        collection_name = st.selectbox("Select a collection for CSV data:", options=collections, key="csv_collection")
+    # Allow the user to choose between an existing collection or a new one.
+    collection_option = st.radio(
+        "Choose collection option for CSV data:",
+        options=["Existing Collection", "New Collection"],
+        index=0,
+        key="csv_collection_option",
+    )
+    if collection_option == "Existing Collection":
+        if collections:
+            collection_name = st.selectbox(
+                "Select a collection for CSV data:", options=collections, key="csv_collection_select"
+            )
+        else:
+            st.info("No existing collections found. Please create a new collection.")
+            collection_name = st.text_input(
+                "Enter collection name for CSV data:", value="sensor_data", key="csv_collection_new"
+            )
     else:
-        collection_name = st.text_input("Enter collection name for CSV data:", value="sensor_data", key="csv_collection")
+        collection_name = st.text_input(
+            "Enter new collection name for CSV data:", value="sensor_data", key="csv_collection_new"
+        )
     csv_file = st.file_uploader("Upload CSV", type="csv", key="csv_file")
     if csv_file is not None:
         try:
