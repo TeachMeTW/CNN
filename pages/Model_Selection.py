@@ -16,6 +16,7 @@ import time
 import threading
 from bson import ObjectId
 import ml.AE_tools as AE_tools
+import tempfile
 
 # Import helper functions
 from ml.model_helper import (
@@ -117,23 +118,18 @@ with tabs[0]:
         "Manage your AutoEncoder models: create, view, train, and delete models."
     )
 
-    # Create two columns for model list and model details
     col1, col2 = st.columns([1, 2])
 
     with col1:
         st.write("### Models")
-
-        # Get all models from database
         all_models = get_all_models()
 
-        # Show a refresh button
-        if st.button("🔄 Refresh Model List"):
+        if st.button("Refresh Model List"):
             st.rerun()
 
         if not all_models:
             st.info("No models found. Create a new model to get started.")
         else:
-            # Display model list with status indicators
             st.write("Select a model to view details:")
             for model in all_models:
                 status_indicator = {
@@ -150,34 +146,32 @@ with tabs[0]:
                     if model.get("training_status") == "in_progress"
                     else ""
                 )
-
                 if st.button(
                     f"{status_indicator} {model['name']}{progress_str}",
                     key=f"model_{model['_id']}",
                 ):
                     st.session_state.active_model_id = str(model["_id"])
 
-        # Add a new model button
         st.write("### Create New Model")
         if st.button("➕ Create New Model", key="new_model_btn"):
             st.session_state.active_model_id = "new"
 
     with col2:
+        # ----------------------------------------------------------------
+        # Creating a new model
+        # ----------------------------------------------------------------
         if st.session_state.active_model_id == "new":
             st.write("### New Model Configuration")
 
-            # Fields for new model
             model_name = st.text_input("Model Name", value="My AutoEncoder Model")
             model_desc = st.text_area(
                 "Description", value="Anomaly detection model for IoT sensors"
             )
-
-            # Data collection selection
             all_collections = db.list_collection_names()
             data_collections = [
                 col
                 for col in all_collections
-                if col != "experiment_logs" and col != "autoencoder_models"
+                if col not in ("experiment_logs", "autoencoder_models")
             ]
             if not data_collections:
                 st.error("No data collections found in the database!")
@@ -189,10 +183,9 @@ with tabs[0]:
                     help="Select the collection containing the training data.",
                 )
 
-            # Device selection (only if a collection is selected)
+            # Select training devices
             training_devices = []
             if source_collection:
-                # Load data to get device list
                 with st.spinner("Loading data to get device list..."):
                     temp_df = load_data_from_db(source_collection)
                     if temp_df is not None and "device" in temp_df.columns:
@@ -204,22 +197,20 @@ with tabs[0]:
                             help="Select devices to use for training.",
                         )
 
-            # Hyperparameter profile selection
+            # Preset / Custom hyperparameters
             hyperparameter_mode = st.radio(
                 "Hyperparameter Profile:",
                 ["Default", "Fast", "Expensive", "Custom"],
                 help="Choose a preset profile or custom settings.",
             )
-
-            # Define hyperparameters for each profile
             hyperparameter_profiles = {
                 "Default": {
                     "latent_dim": 5,
                     "dropout": 0.1,
                     "reduction_modulo": 2,
-                    "epochs": 500,
+                    "epochs": 300,
                     "batch_size": 128,
-                    "learning_rate": 0.001,
+                    "learning_rate": 0.005,
                     "error_threshold_percentile": 99.95,
                     "description": "Balanced settings for general anomaly detection",
                 },
@@ -229,7 +220,7 @@ with tabs[0]:
                     "reduction_modulo": 3,
                     "epochs": 200,
                     "batch_size": 256,
-                    "learning_rate": 0.002,
+                    "learning_rate": 0.01,
                     "error_threshold_percentile": 99.90,
                     "description": "Optimized for quick training and deployment",
                 },
@@ -245,12 +236,11 @@ with tabs[0]:
                 },
             }
 
-            # Show hyperparameter inputs based on mode selection
             if hyperparameter_mode == "Custom":
                 st.info("Adjust the hyperparameters for the AutoEncoder model below.")
                 with st.expander("Custom Hyperparameters", expanded=True):
-                    col1, col2 = st.columns(2)
-                    with col1:
+                    colA, colB = st.columns(2)
+                    with colA:
                         latent_dim = st.slider(
                             "Latent Dimension", min_value=2, max_value=20, value=5
                         )
@@ -264,7 +254,7 @@ with tabs[0]:
                         reduction_modulo = st.slider(
                             "Reduction Modulo", min_value=1, max_value=10, value=2
                         )
-                    with col2:
+                    with colB:
                         epochs = st.selectbox(
                             "Epochs", options=[200, 500, 1000, 1500, 2000], index=1
                         )
@@ -273,15 +263,7 @@ with tabs[0]:
                         )
                         learning_rate = st.selectbox(
                             "Learning Rate",
-                            options=[
-                                0.1,
-                                0.01,
-                                0.005,
-                                0.002,
-                                0.001,
-                                0.0005,
-                                0.0001,
-                            ],
+                            options=[0.1, 0.01, 0.005, 0.002, 0.001, 0.0005, 0.0001],
                             index=4,
                         )
 
@@ -304,21 +286,15 @@ with tabs[0]:
                     "profile": "Custom",
                 }
             else:
-                # Get selected profile
                 profile = hyperparameter_profiles[hyperparameter_mode]
-
-                # Display profile info
                 st.info(f"**{hyperparameter_mode} Profile**: {profile['description']}")
-
-                # Show a brief summary
                 st.write(
-                    f"• Epochs: {profile['epochs']} | Latent Dim: {profile['latent_dim']} | Error Threshold: {profile['error_threshold_percentile']}%"
+                    f"• Epochs: {profile['epochs']} | Latent Dim: {profile['latent_dim']} "
+                    f"| Error Threshold: {profile['error_threshold_percentile']}%"
                 )
-
-                # Add expander for detailed parameters
                 with st.expander("Show all parameters"):
-                    col1, col2 = st.columns(2)
-                    with col1:
+                    colA, colB = st.columns(2)
+                    with colA:
                         st.write("**Model Parameters:**")
                         st.write(f"• Latent Dimension: {profile['latent_dim']}")
                         st.write(f"• Dropout: {profile['dropout']}")
@@ -326,7 +302,7 @@ with tabs[0]:
                         st.write(
                             f"• Error Threshold: {profile['error_threshold_percentile']} percentile"
                         )
-                    with col2:
+                    with colB:
                         st.write("**Training Parameters:**")
                         st.write(f"• Epochs: {profile['epochs']}")
                         st.write(f"• Batch Size: {profile['batch_size']}")
@@ -343,46 +319,28 @@ with tabs[0]:
                     "profile": hyperparameter_mode,
                 }
 
-            # Create and start training button
-            if st.button("Create and Start Training", disabled=not source_collection):
-                if not source_collection:
-                    st.error("Please select a data source first!")
-                else:
-                    # Create the training job in MongoDB
-                    job_id = create_training_job(
-                        model_name=model_name,
-                        description=model_desc,
-                        source_collection=source_collection,
-                        hyperparameters=hyperparams,
-                    )
+            # Create model & train
+            if st.button("Create and Start Training"):
+                job_id = create_training_job(
+                    model_name=model_name,
+                    description=model_desc,
+                    source_collection=source_collection,
+                    hyperparameters=hyperparams,
+                    training_devices=training_devices,
+                )
+                train_model_async(job_id)
+                st.success(f"Training started for {model_name}")
+                st.rerun()
 
-                    # Load the data for training
-                    with st.spinner("Loading data for training..."):
-                        training_data = load_data_from_db(source_collection)
-
-                    if training_data is not None:
-                        # Start training in a background process
-                        training_thread = train_model_async(
-                            job_id, training_data, training_devices, hyperparams
-                        )
-
-                        # Update session state
-                        st.session_state.training_job = job_id
-                        st.session_state.active_model_id = job_id
-
-                        st.success(f"Training started for model: {model_name}")
-                        st.rerun()
-                    else:
-                        st.error("Failed to load training data!")
-
+        # ----------------------------------------------------------------
+        # An existing model is selected
+        # ----------------------------------------------------------------
         elif st.session_state.active_model_id:
-            # Load the model details
             try:
                 model_doc = read_document(
                     {"_id": ObjectId(st.session_state.active_model_id)},
                     "autoencoder_models",
                 )
-
                 if model_doc:
                     st.write(f"### {model_doc['name']}")
                     st.write(
@@ -393,7 +351,6 @@ with tabs[0]:
                         f"**Source Data:** {model_doc.get('source_collection', 'Unknown')}"
                     )
 
-                    # Status and progress
                     status = model_doc.get("training_status", "Unknown")
                     status_labels = {
                         "initialized": "🔍 Initialized",
@@ -403,86 +360,67 @@ with tabs[0]:
                         "failed": "⚠️ Training Failed",
                     }
                     st.write(f"**Status:** {status_labels.get(status, status)}")
-                    # Add a Delete Model button
-                    if st.button("🗑️ Delete Model"):
-                        # (Optional) Prevent deletion if this model is currently training:
-                        if st.session_state.active_model_id == st.session_state.get("training_job"):
+
+                    # Delete model
+                    if st.button("🗑️ Delete Model", key="delete_model"):
+                        if (
+                            st.session_state.active_model_id
+                            == st.session_state.get("training_job")
+                        ):
                             st.error("Cannot delete a model that is currently training!")
                         else:
                             delete_model(st.session_state.active_model_id)
                             st.session_state.active_model_id = None
                             st.success("Model deleted successfully!")
                             st.rerun()
-                    # Show progress bar for in-progress models
-                    if model_doc.get("training_status") == "in_progress":
+
+                    # Show progress if training
+                    if status == "in_progress":
                         progress = model_doc.get("training_progress", 0)
                         st.progress(progress)
                         st.write(f"Progress: {int(progress * 100)}%")
 
-                        # Cancel training button
-                        if st.button("❌ Cancel Training"):
+                        # Cancel training
+                        if st.button("❌ Cancel Training", key="cancel_training"):
                             update_document(
                                 {"_id": ObjectId(st.session_state.active_model_id)},
                                 {"cancel_requested": True},
-                                "autoencoder_models"
+                                "autoencoder_models",
                             )
-                            st.warning("Cancellation requested. The training process will stop at the next checkpoint.")
+                            st.warning("Cancellation requested. The process will stop soon.")
 
-                    # Show error message for failed models
+                    # Failed message
                     if status == "failed" and "error_message" in model_doc:
                         st.error(f"Error: {model_doc['error_message']}")
 
-                    # Show hyperparameters
+                    # Show hyperparams
                     if "hyperparameters" in model_doc:
                         with st.expander("Hyperparameters", expanded=False):
                             hyperparams = model_doc["hyperparameters"]
-                            col1, col2 = st.columns(2)
-                            with col1:
+                            colA, colB = st.columns(2)
+                            with colA:
                                 st.write("**Model Parameters:**")
-                                st.write(
-                                    f"• Latent Dimension: {hyperparams.get('latent_dim', 'N/A')}"
-                                )
-                                st.write(
-                                    f"• Dropout: {hyperparams.get('dropout', 'N/A')}"
-                                )
-                                st.write(
-                                    f"• Reduction Modulo: {hyperparams.get('reduction_modulo', 'N/A')}"
-                                )
-                                st.write(
-                                    f"• Profile: {hyperparams.get('profile', 'N/A')}"
-                                )
-                            with col2:
+                                st.write(f"• Latent Dimension: {hyperparams.get('latent_dim','N/A')}")
+                                st.write(f"• Dropout: {hyperparams.get('dropout','N/A')}")
+                                st.write(f"• Reduction Modulo: {hyperparams.get('reduction_modulo','N/A')}")
+                                st.write(f"• Profile: {hyperparams.get('profile','N/A')}")
+                            with colB:
                                 st.write("**Training Parameters:**")
-                                st.write(
-                                    f"• Epochs: {hyperparams.get('epochs', 'N/A')}"
-                                )
-                                st.write(
-                                    f"• Batch Size: {hyperparams.get('batch_size', 'N/A')}"
-                                )
-                                st.write(
-                                    f"• Learning Rate: {hyperparams.get('learning_rate', 'N/A')}"
-                                )
-                                st.write(
-                                    f"• Error Threshold: {hyperparams.get('error_threshold_percentile', 'N/A')}%"
-                                )
+                                st.write(f"• Epochs: {hyperparams.get('epochs','N/A')}")
+                                st.write(f"• Batch Size: {hyperparams.get('batch_size','N/A')}")
+                                st.write(f"• Learning Rate: {hyperparams.get('learning_rate','N/A')}")
+                                st.write(f"• Error Threshold: {hyperparams.get('error_threshold_percentile','N/A')}%")
 
-                    # Show training metrics for completed models
+                    # Show training metrics if completed
                     if status == "completed" and "metrics" in model_doc:
                         with st.expander("Training Metrics", expanded=True):
                             metrics = model_doc["metrics"]
                             if "loss" in metrics and "val_loss" in metrics:
-                                # Create a DataFrame for plotting
-                                metrics_df = pd.DataFrame(
-                                    {
-                                        "epoch": list(
-                                            range(1, len(metrics["loss"]) + 1)
-                                        ),
-                                        "loss": metrics["loss"],
-                                        "val_loss": metrics["val_loss"],
-                                    }
-                                )
-
-                                # Plot the loss curves
+                                metrics_df = pd.DataFrame({
+                                    "epoch": list(range(1, len(metrics["loss"]) + 1)),
+                                    "loss": metrics["loss"],
+                                    "val_loss": metrics["val_loss"],
+                                })
                                 fig = px.line(
                                     metrics_df,
                                     x="epoch",
@@ -493,19 +431,15 @@ with tabs[0]:
                                 )
                                 st.plotly_chart(fig, use_container_width=True)
 
-                    # Action buttons for completed models
+                    # Actions for completed model
                     if status == "completed":
-                        col1, col2, col3 = st.columns(3)
+                        colA, colB, colC, colD = st.columns(4)
 
-                        with col1:
+                        # Use model
+                        with colA:
                             if st.button("🔍 Use This Model"):
-                                # Load the model and scaler into session state
                                 with st.spinner("Loading model..."):
-                                    (
-                                        model_obj,
-                                        scaler_obj,
-                                        _,
-                                    ) = load_model_from_db(
+                                    model_obj, scaler_obj, _ = load_model_from_db(
                                         st.session_state.active_model_id
                                     )
                                     st.session_state.model = model_obj
@@ -520,7 +454,7 @@ with tabs[0]:
                                         "source_collection", None
                                     )
 
-                                    # If source collection is available, load the data
+                                    # If source collection is available, load
                                     if st.session_state.source_collection:
                                         st.session_state.df = load_data_from_db(
                                             st.session_state.source_collection
@@ -528,63 +462,70 @@ with tabs[0]:
                                         if st.session_state.df is not None:
                                             TIMESTAMP = "ts"
                                             ID_COL = "device"
-                                            st.session_state.CONTEXT = [
-                                                TIMESTAMP,
-                                                ID_COL,
-                                            ]
+                                            st.session_state.CONTEXT = [TIMESTAMP, ID_COL]
                                             st.session_state.df[ID_COL] = (
                                                 st.session_state.df[ID_COL].astype(str)
                                             )
                                             st.session_state.FEATURES = [
                                                 col
                                                 for col in st.session_state.df.columns
-                                                if col
-                                                not in st.session_state.CONTEXT
+                                                if col not in st.session_state.CONTEXT
                                                 and col != "_id"
                                             ]
-                                            st.session_state.df[
-                                                st.session_state.FEATURES
-                                            ] = st.session_state.df[
-                                                st.session_state.FEATURES
-                                            ].apply(
-                                                lambda x: pd.to_numeric(
-                                                    x, errors="coerce"
-                                                )
-                                            ).fillna(
-                                                0.0
+                                            st.session_state.df[st.session_state.FEATURES] = (
+                                                st.session_state.df[st.session_state.FEATURES]
+                                                .apply(lambda x: pd.to_numeric(x, errors="coerce"))
+                                                .fillna(0.0)
                                             )
-                                            st.session_state.df = (
-                                                st.session_state.df.sort_values(
-                                                    [TIMESTAMP, ID_COL], ascending=True
-                                                )
-                                                .reset_index(drop=True)
-                                            )
-                                            st.session_state.df_copy = (
-                                                st.session_state.df.copy()
-                                            )
+                                            st.session_state.df = st.session_state.df.sort_values(
+                                                [TIMESTAMP, ID_COL]
+                                            ).reset_index(drop=True)
+                                            st.session_state.df_copy = st.session_state.df.copy()
 
-                                st.success(
-                                    f"Model '{model_doc['name']}' loaded successfully!"
-                                )
-                                st.info(
-                                    "Navigate to the Results & Visualization or Anomalies tabs to analyze data with this model."
-                                )
+                                st.success(f"Model '{model_doc['name']}' loaded successfully!")
+                                st.info("Navigate to the Results & Visualization or Anomalies tabs to analyze data.")
 
-                        with col2:
+                        # Retrain model
+                        with colB:
                             if st.button("🔄 Retrain Model"):
-                                # Create a new model with the same parameters
                                 st.session_state.active_model_id = "new"
                                 st.rerun()
 
-                        with col3:
+                        # Download model
+                        with colC:
+                            import io
+                            if st.button("⏬ Download Model"):
+                                with st.spinner("Preparing model for download..."):
+                                    model_obj, scaler_obj, _ = load_model_from_db(
+                                        st.session_state.active_model_id
+                                    )
+                                    # 1) Write model to a temporary file
+                                    with tempfile.NamedTemporaryFile(suffix=".h5", delete=False) as tmp:
+                                        tmp_name = tmp.name  # This is the actual file path
+                                    model_obj.save(tmp_name)  # Writes an H5 file to disk
+
+                                    # 2) Read that file back into memory
+                                    with open(tmp_name, "rb") as f:
+                                        file_bytes = f.read()
+
+                                    # 3) Delete the temp file
+                                    os.remove(tmp_name)
+
+                                # 4) Use download_button to offer the .h5 file
+                                st.download_button(
+                                    label="Download .h5",
+                                    data=file_bytes,
+                                    file_name=f"{model_doc['name']}.h5",
+                                    mime="application/octet-stream" )
+
+                        # Delete model
+                        with colD:
                             if st.button("🗑️ Delete Model"):
                                 if (
                                     st.session_state.active_model_id
                                     == st.session_state.training_job
                                 ):
-                                    st.error(
-                                        "Cannot delete a model that is currently training!"
-                                    )
+                                    st.error("Cannot delete a model that is training!")
                                 else:
                                     delete_model(st.session_state.active_model_id)
                                     st.session_state.active_model_id = None
@@ -598,13 +539,12 @@ with tabs[0]:
                                     st.success("Model deleted successfully!")
                                     st.rerun()
                 else:
-                    st.error(
-                        f"Model with ID {st.session_state.active_model_id} not found!"
-                    )
+                    st.error(f"Model with ID {st.session_state.active_model_id} not found!")
             except Exception as e:
                 st.error(f"Error loading model details: {e}")
         else:
             st.info("Select a model from the list or create a new one.")
+
 
 # ====================================================
 # TAB 1: CONFIGURATION
@@ -679,13 +619,14 @@ with tabs[1]:
     st.write("---")
 
     # --- Info about loading models ---
-    st.write("##### 3. Model Selection")
-    st.info(
-        "⚠️ For model training and management, please use the 'Models' tab. This provides better tracking and management of your models."
-    )
+
 
     # Check if a model is already loaded
-    if st.session_state.model is not None:
+    if st.session_state.df is not None and st.session_state.model is not None:
+        st.write("##### 3. Model Information")
+        st.info(
+            "⚠️ For model training and management, please use the 'Models' tab. This provides better tracking and management of your models."
+        )
         st.success(
             "✅ A model is currently loaded and ready to use. Navigate to the Results or Anomalies tabs to analyze data."
         )
@@ -733,7 +674,15 @@ with tabs[2]:
     st.info(
         "Here you can review the loaded data. This step gives you an overview and a preview of your dataset."
     )
-    if st.session_state.df is not None:
+
+    if not st.session_state.active_model_id:
+        st.warning("No model selected. Go to Tab 0.")
+    elif st.session_state.df is None:
+        st.warning("No dataset loaded. Go to Tab 1.")
+    else:
+        st.write(f"Using Model: {st.session_state.active_model_id}")
+        st.write(f"Dataset size: {len(st.session_state.df)} rows")
+        st.dataframe(st.session_state.df.head(10))
         with st.spinner("Gathering dataset overview..."):
             buf = io.StringIO()
             st.session_state.df.info(buf=buf)
@@ -759,8 +708,6 @@ with tabs[2]:
                     template="ggplot2",
                 )
             st.plotly_chart(fig_dist, use_container_width=True)
-    else:
-        st.info("Please load data from the Configuration tab first.")
 
 
 # ====================================================
@@ -772,42 +719,42 @@ with tabs[3]:
         "This section displays the training history, loss curves, latent space visualization, and reconstruction error histogram."
     )
 
-    if st.session_state.model is None:
+    # 1) Check for model and data
+    if not st.session_state.active_model_id:
         st.warning(
-            "No model is loaded. Please go to the Models tab to select or create a model."
+            "No model is selected. Please go to the Models tab to select or create a model."
         )
     elif st.session_state.df is None:
-        st.error("Data is not loaded. Please load data from the Configuration tab first.")
+        st.error("No dataset loaded. Please load data from the Configuration tab first.")
     else:
-        # Get active model info if available
-        model_info = None
-        if st.session_state.active_model_id:
-            try:
-                model_info = read_document(
-                    {"_id": ObjectId(st.session_state.active_model_id)},
-                    "autoencoder_models",
-                )
-            except:
-                pass
+        # 2) Load model from DB
+        try:
+            model_obj, scaler_obj, model_info = load_model_from_db(st.session_state.active_model_id)
+        except Exception as e:
+            st.error(f"Failed to load model from DB: {e}")
+            st.stop()
 
-        st.write("**Using Model:**", model_info["name"] if model_info else "Custom Model")
+        # 3) Store them in session state for consistency
+        st.session_state.model = model_obj
+        st.session_state.scaler = scaler_obj
 
-        # Get the training metrics if available from the model document
+        model_name = model_info["name"] if model_info else "Custom Model"
+        st.write("**Using Model:**", model_name)
+
+        # 4) Show training metrics if available
         if model_info and "metrics" in model_info:
-            st.write("**Training History:**")
             metrics = model_info["metrics"]
             if "loss" in metrics and "val_loss" in metrics:
-                # Create a DataFrame for the metrics
-                history_df = pd.DataFrame(
-                    {
-                        "epoch": range(1, len(metrics["loss"]) + 1),
-                        "loss": metrics["loss"],
-                        "val_loss": metrics["val_loss"],
-                    }
-                )
-
+                st.write("**Training History:**")
+                # Convert metrics to a DataFrame
+                history_df = pd.DataFrame({
+                    "epoch": range(1, len(metrics["loss"]) + 1),
+                    "loss": metrics["loss"],
+                    "val_loss": metrics["val_loss"],
+                })
                 st.dataframe(history_df.head())
 
+                # Plot loss curves
                 with st.spinner("Plotting loss curves..."):
                     fig_loss = px.line(
                         history_df,
@@ -819,37 +766,43 @@ with tabs[3]:
                     )
                 st.plotly_chart(fig_loss, use_container_width=True)
 
-        # Process the current data with the loaded model
+        # 5) Scale the current data
         df_scaled = st.session_state.df.copy()
-        df_scaled[st.session_state.FEATURES] = st.session_state.scaler.transform(
-            st.session_state.df[st.session_state.FEATURES]
-        )
-        df_scaled, preds = AE_tools.calculate_error(
-            auto_encoder=st.session_state.model,
-            data_frame=df_scaled,
-            features=st.session_state.FEATURES,
-        )
+        if st.session_state.FEATURES:
+            with st.spinner("Scaling data..."):
+                df_scaled[st.session_state.FEATURES] = st.session_state.scaler.transform(
+                    df_scaled[st.session_state.FEATURES]
+                )
+
+        # 6) Calculate reconstruction errors using the loaded model
+        with st.spinner("Calculating reconstruction errors..."):
+            df_scaled, preds = AE_tools.calculate_error(
+                auto_encoder=st.session_state.model,
+                data_frame=df_scaled,
+                features=st.session_state.FEATURES,
+            )
         st.session_state.df_copy = df_scaled.copy()
 
-        # Generate latent space representation
-        latent_space_df = AE_tools.build_latent_space(
-            auto_encoder=st.session_state.model,
-            data_frame=df_scaled,
-            features=st.session_state.FEATURES,
-        )
+        # 7) Build latent space representation
+        with st.spinner("Building latent space..."):
+            latent_space_df = AE_tools.build_latent_space(
+                auto_encoder=st.session_state.model,
+                data_frame=df_scaled,
+                features=st.session_state.FEATURES,
+            )
         st.session_state.latent_space = latent_space_df
+
+        # Merge latent space columns back into df_copy
         for col in latent_space_df.columns:
             st.session_state.df_copy[col] = latent_space_df[col]
 
-        # Display anomaly threshold
-        threshold_val = (
-            model_info.get("error_threshold")
-            if model_info
-            else st.session_state.ERROR_THRESHOLD
-        )
+        # 8) Determine anomaly threshold from model doc or fallback
+        threshold_val = model_info.get("error_threshold") if model_info else None
+        if not threshold_val:
+            threshold_val = st.session_state.ERROR_THRESHOLD or 0.0
         st.write(f"**Anomaly Threshold:** {threshold_val}")
 
-        # Plot reconstruction error distribution
+        # 9) Plot reconstruction error distribution
         with st.spinner("Plotting reconstruction error distribution..."):
             fig_dist_err = px.histogram(
                 st.session_state.df_copy,
@@ -858,7 +811,6 @@ with tabs[3]:
                 title="Distribution of Reconstruction Errors",
                 template="ggplot2",
             )
-            # Add a vertical line for the threshold
             fig_dist_err.add_vline(
                 x=threshold_val,
                 line_dash="dash",
@@ -868,14 +820,13 @@ with tabs[3]:
             )
         st.plotly_chart(fig_dist_err, use_container_width=True)
 
-        # Latent space visualization
+        # 10) Latent space visualization (if 2 or more dims)
         if st.session_state.latent_space.shape[1] >= 2:
             st.write("**Latent Space Visualization:**")
             color_overlay = st.selectbox(
                 "Select color overlay for latent space:",
-                options=[st.session_state.CONTEXT[1], "reconstruction_error"]
-                + st.session_state.FEATURES,
-                help="For example, select 'reconstruction_error' to see how errors vary in the latent space.",
+                options=[st.session_state.CONTEXT[1], "reconstruction_error"] + st.session_state.FEATURES,
+                help="E.g., select 'reconstruction_error' to see how errors vary in latent space.",
             )
             with st.spinner("Plotting latent space..."):
                 fig_lat = AE_tools.plot_latent_space(
@@ -889,7 +840,6 @@ with tabs[3]:
         else:
             st.info("Latent space has fewer than 2 dimensions; skipping visualization.")
 
-
 # ====================================================
 # TAB 4: ANOMALIES
 # ====================================================
@@ -899,10 +849,12 @@ with tabs[4]:
         "This section shows anomalies detected based on the reconstruction error. You can also view error trends over time for selected devices."
     )
 
-    if st.session_state.model is None:
+    if not st.session_state.active_model_id:
         st.warning(
             "No model is loaded. Please go to the Models tab to select or create a model."
         )
+    elif st.session_state.df is None:
+        st.warning("No dataset loaded. Go to the Configuration tab.")
     elif (
         st.session_state.df_copy is None
         or "reconstruction_error" not in st.session_state.df_copy.columns

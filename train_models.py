@@ -1,35 +1,23 @@
 # ml/train_model.py
 import sys
-import json
-import pickle
-import os
-import tensorflow as tf
 import time
-from datetime import datetime
 import logging
+from datetime import datetime
 from bson import ObjectId
+import tensorflow as tf
 
 # Import your modules
-# Fixed: Corrected relative import path
-# from ..db_utils.db import db, update_document, read_document
-from db_utils.db import db, update_document, read_document  # Absolute import
+from db_utils.db import read_document, update_document
 import ml.AE_tools as AE_tools
 from ml.AE import AutoEncoder
 from ml.model_helper import serialize_model, serialize_scaler
 
-
-# Configure logging
-logging.basicConfig(
-    filename="training.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+logging.basicConfig(level=logging.INFO)
 
 
 def check_for_cancellation(model_id):
-    """Check if training should be cancelled"""
-    model_doc = read_document({"_id": ObjectId(model_id)}, "autoencoder_models")
-    return model_doc.get("cancel_requested", False)
+    doc = read_document({"_id": ObjectId(model_id)}, "autoencoder_models")
+    return doc.get("cancel_requested", False)
 
 
 class TrainingCallback(tf.keras.callbacks.Callback):
@@ -41,17 +29,12 @@ class TrainingCallback(tf.keras.callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         progress = (epoch + 1) / self.total_epochs
-
-        # Update progress in database
         update_document(
             {"_id": ObjectId(self.model_id)},
             {"training_progress": progress},
             "autoencoder_models",
         )
-
-        # Check for cancellation
         if check_for_cancellation(self.model_id):
-            logging.info(f"Training cancelled for model {self.model_id}")
             self.model.stop_training = True
             update_document(
                 {"_id": ObjectId(self.model_id)},
@@ -61,7 +44,6 @@ class TrainingCallback(tf.keras.callbacks.Callback):
 
     def on_train_end(self, logs=None):
         if check_for_cancellation(self.model_id):
-            logging.info(f"Training cancelled for model {self.model_id}")
             update_document(
                 {"_id": ObjectId(self.model_id)},
                 {"training_status": "cancelled"},
@@ -70,142 +52,93 @@ class TrainingCallback(tf.keras.callbacks.Callback):
 
 
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: python train_model.py <config_file>")
+    if len(sys.argv) < 2:
+        print("Usage: python train_model.py <model_id>")
         sys.exit(1)
 
-    config_path = sys.argv[1]
-
+    model_id = sys.argv[1]
     try:
-        # Load configuration
-        with open(config_path, "r") as f:
-            config = json.load(f)
+        # Retrieve job from DB
+        model_doc = read_document({"_id": ObjectId(model_id)}, "autoencoder_models")
+        if not model_doc:
+            logging.error("Model doc not found in DB.")
+            sys.exit(1)
 
-        model_id = config["model_id"]
-        data_path = config["data_path"]
+        # Load config from doc
+        source_collection = model_doc["source_collection"]
+        hyperparams = model_doc["hyperparameters"]
+        training_devices = model_doc["training_devices"]
 
-        # Load training data
-        with open(data_path, "rb") as f:
-            training_data = pickle.load(f)
+        # Load data from DB
+        from ml.model_helper import load_data_from_db
 
-        df = training_data["df"]
-        training_devices = training_data["training_devices"]
-        hyperparams = training_data["hyperparams"]
-
-        logging.info(f"Starting training for model {model_id}")
-
-        # Actual training code from your original train_model_async function
-        TIMESTAMP = "ts"
-        ID_COL = "device"
-        SCALER = "Robust"
-        MACHINE_TYPE = "mac"
-        SAMPLE_PERC = 0.5
-        features = [
-            col for col in df.columns if col not in [TIMESTAMP, ID_COL, "_id"]
-        ]
-
-        # Filter by training devices if specified
+        df = load_data_from_db(source_collection)
         if training_devices:
-            train_df = df[df[ID_COL].isin(training_devices)]
-        else:
-            train_df = df.copy()
+            df = df[df["device"].isin(training_devices)]
+        df = df.sample(frac=0.5, random_state=42)  # Example sampling
 
-        # Sample data
-        train_df = train_df.sample(frac=SAMPLE_PERC, random_state=42)
+        features = [c for c in df.columns if c not in ["_id", "ts", "device"]]
 
         # Prepare data
-        train_df, scaler_obj = AE_tools.prep_data(
-            data_frame=train_df.copy(), features=features, scaler=SCALER
-        )
+        df_prep, scaler_obj = AE_tools.prep_data(df.copy(), features, scaler="Robust")
 
-        # Build model
+        # Build & train model
         autoenc = AutoEncoder(
-            data=train_df,
+            data=df_prep,  # Use prepped data
             features=features,
             model_name=f"temp_model_{model_id}.h5",
             log_dir=f"logs_temp_{model_id}",
             random_state=42,
-            machine_type=MACHINE_TYPE,
+            machine_type="mac",
             n_trials=1,
         )
-
-        autoencoder_model = autoenc.buildAutoEncoder(
+        model = autoenc.buildAutoEncoder(
             latent_dim=hyperparams["latent_dim"],
             reduction_modulo=hyperparams["reduction_modulo"],
             dropout_percentage=hyperparams["dropout"],
             learning_rate=hyperparams["learning_rate"],
         )
 
-        # Setup callbacks
-        std_callbacks = autoenc.loggingAutoEncoder(
-            autoencoder=autoencoder_model, batch_size=hyperparams["batch_size"]
-        )
-
-        # Add custom progress callback
-        progress_callback = TrainingCallback(model_id, hyperparams["epochs"])
-        all_callbacks = std_callbacks + [progress_callback]
-
-        # Train model
+        cb = TrainingCallback(model_id, hyperparams["epochs"])
+        callbacks = autoenc.loggingAutoEncoder(model, hyperparams["batch_size"]) + [cb]
         history_df = autoenc.fitAutoEncoder(
-            model=autoencoder_model,
-            epochs=hyperparams["epochs"],
-            batch_size=hyperparams["batch_size"],
-            callbacks=all_callbacks,
+            model, hyperparams["epochs"], hyperparams["batch_size"], callbacks
         )
 
-        # Calculate error threshold
+        # Compute error threshold
         _, threshold_val = AE_tools.calculate_error_threshold(
-            auto_encoder=autoencoder_model,
-            train_data=train_df,
+            auto_encoder=model,
+            train_data=df_prep,
             features=features,
             percentile=hyperparams["error_threshold_percentile"],
         )
 
-        # Final update to database with trained model
-        history_dict = history_df.to_dict("list") if history_df is not None else None
-
+        # Update doc with final model
         update_document(
             {"_id": ObjectId(model_id)},
             {
-                "model": serialize_model(autoencoder_model),
+                "model": serialize_model(model),
                 "scaler": serialize_scaler(scaler_obj),
                 "error_threshold": threshold_val,
                 "metrics": {
-                    "loss": history_dict.get("loss", []) if history_dict else [],
-                    "val_loss": history_dict.get("val_loss", []) if history_dict else [],
+                    "loss": history_df["loss"].tolist(),
+                    "val_loss": history_df["val_loss"].tolist(),
                 },
                 "training_status": "completed",
+                "training_progress": 1.0,
                 "completed_at": datetime.now(),
-                "training_time": time.time() - progress_callback.start_time,
             },
             "autoencoder_models",
         )
-
-        logging.info(f"Training completed for model {model_id}")
-
-        # Clean up temporary files
-        try:
-            os.remove(data_path)
-            os.remove(config_path)
-        except Exception as e:
-            logging.warning(f"Error cleaning up temp files: {e}")
+        logging.info(f"Training completed for model {model_id}.")
 
     except Exception as e:
         logging.error(f"Training error: {e}", exc_info=True)
-
-        # Update status to failed
-        try:
-            update_document(
-                {"_id": ObjectId(model_id)},
-                {
-                    "training_status": "failed",
-                    "error_message": str(e),
-                    "completed_at": datetime.now(),
-                },
-                "autoencoder_models",
-            )
-        except Exception as inner_e:
-            logging.error(f"Error updating model status: {inner_e}")
+        update_document(
+            {"_id": ObjectId(model_id)},
+            {"training_status": "failed", "error_message": str(e)},
+            "autoencoder_models",
+        )
 
 
 if __name__ == "__main__":

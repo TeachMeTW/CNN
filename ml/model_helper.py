@@ -112,22 +112,38 @@ def update_training_progress(model_id, progress, status="in_progress"):
     )
 
 
-def create_training_job(model_name, description, source_collection, hyperparameters):
-    """
-    Create a new training job entry in MongoDB.
-    """
+def create_training_job(
+    model_name, description, source_collection, hyperparameters, training_devices
+):
+    """Create a new model doc in DB, storing all details (including devices) for training."""
     job_doc = {
         "name": model_name,
-        "created_at": datetime.now(),
         "description": description,
         "source_collection": source_collection,
         "hyperparameters": hyperparameters,
+        "training_devices": training_devices,  # Store device list
+        "created_at": datetime.now(),
         "training_status": "initialized",
         "training_progress": 0.0,
-        "training_time": None,
     }
     job_id = create_document(job_doc, "autoencoder_models")
     return str(job_id)
+
+
+def train_model_async(model_id):
+    """
+    Launch model training as a separate process. The process will read from DB
+    instead of from local pickled files.
+    """
+    # Mark DB status
+    update_document(
+        {"_id": ObjectId(model_id)},
+        {"training_status": "in_progress", "training_progress": 0.0},
+        "autoencoder_models",
+    )
+    # Launch train_models.py with model_id as argument
+    subprocess.Popen([sys.executable, "train_models.py", model_id])  # <--- pass model_id directly
+    return model_id
 
 
 def delete_model(model_id):
@@ -177,42 +193,3 @@ def serialize_scaler(scaler):
 
 def load_scaler_from_serialized(scaler_str):
     return pickle.loads(base64.b64decode(scaler_str.encode("utf-8")))
-
-
-# ---------------------------
-# Async Training Functions
-# ---------------------------
-def train_model_async(model_id, df, training_devices, hyperparams):
-    """
-    Launch model training as a separate process instead of a thread
-    """
-    # Save temporary data for the training process
-    temp_data_path = f"temp_data_{model_id}.pkl"
-    temp_config_path = f"temp_config_{model_id}.json"
-
-    # Save training data and configuration
-    with open(temp_data_path, "wb") as f:
-        pickle.dump(
-            {"df": df, "training_devices": training_devices, "hyperparams": hyperparams},
-            f,
-        )
-
-    # Create a configuration file
-    with open(temp_config_path, "w") as f:
-        json.dump({"model_id": model_id, "data_path": temp_data_path}, f)
-
-    # Launch the training script as a separate process
-    subprocess.Popen([sys.executable, "train_model.py", temp_config_path])
-
-    # Update status to indicate training has been queued
-    update_document(
-        {"_id": ObjectId(model_id)},
-        {
-            "training_status": "in_progress",
-            "training_progress": 0.0,
-            "start_time": datetime.now(),
-        },
-        "autoencoder_models",
-    )
-
-    return model_id
