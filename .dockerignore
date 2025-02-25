@@ -20,3 +20,5 @@ __pycache__
 
 # Optionally ignore environment files if not required
 .env
+
+logs_temp
