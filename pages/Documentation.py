@@ -264,10 +264,11 @@ def main():
     """, unsafe_allow_html=True)
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # ----------------------------
+   # ----------------------------
     # INSTALLATION AND SETUP SECTION
     # ----------------------------
     anchored_heading(2, "Installation and Setup", "installation-and-setup")
+
     st.markdown("""
     <p>
       To use this dashboard locally, follow the steps below. Getting started is simple:
@@ -279,18 +280,40 @@ def main():
         <ul>
           <li>For directions on how to clone a GitHub repository, see the <a href="https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository" style="color: #1a73e8;">GitHub Cloning Guide</a>.</li>
         </ul>
-        
       </li>
 
       <li>
         <strong>Set Up Environment Variables (if running locally):</strong>  
         If you are using the hosted version at <a href="https://cisconeural.net" style="color: #1a73e8;">cisconeural.net</a>, you can skip this step.
-        Otherwise, create a <code>.env</code> file in the project root directory and add your settings:
-        <pre><code>MONGO_URI=mongodb://localhost:27017/mydatabase
-    SECRET_KEY=your_secret_key
-    DEBUG=True</code></pre>
-      </li>
+        Otherwise, create a <code>.env</code> file in the project root directory and add your settings.
+        <br><br>
+        For details on setting up MongoDB, see the 
+        <a href="https://www.mongodb.com/docs/manual/installation/" style="color: #1a73e8;" target="_blank">MongoDB Installation Guide</a>.
+      // deleted closing li
+    // deleted closing ol 
 
+    <pre><code># Streamlit Configuration
+    STREAMLIT_PORT=8501
+    STREAMLIT_ADDRESS=0.0.0.0
+
+    # MongoDB Configuration
+    MONGO_VERSION=6.0
+    MONGO_CONTAINER_NAME=mongo
+    MONGO_PORT=27017
+    MONGO_ROOT_USERNAME=&lt;user&gt;
+    MONGO_ROOT_PASSWORD=&lt;pass&gt;
+    MONGO_INITDB_DATABASE=&lt;db&gt;
+    MONGO_DATA_VOLUME=mongo_data
+
+    # Application Configuration
+    PYTHONUNBUFFERED=1
+    PYTHONDONTWRITEBYTECODE=1
+    MONGO_URI=mongodb://&lt;user&gt;:&lt;pass&gt;@mongo:27017/&lt;databaseurl&gt;?authSource=admin
+    </code></pre>
+    </li>
+    </ol>
+
+    <ol start="3">
       <li>
         <strong>Install Dependencies:</strong>  
         Run the following command to install required Python libraries:
@@ -310,7 +333,6 @@ def main():
       <strong>Note:</strong> Ensure your MongoDB server is running before launching the application.
     </p>
     """, unsafe_allow_html=True)
-
 
 
 
