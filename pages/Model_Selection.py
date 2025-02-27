@@ -53,7 +53,7 @@ warnings.filterwarnings("ignore")
 # Streamlit Page Setup
 # ---------------------------
 st.set_page_config(page_title="IoT AutoEncoder Dashboard", layout="wide")
-st.title("IoT AutoEncoder Dashboard")
+st.title("Model Selection: IoT AutoEncoder Dashboard")
 
 # ---------------------------
 # Session State Variables
