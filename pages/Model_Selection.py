@@ -112,6 +112,33 @@ tabs = st.tabs(
 # ====================================================
 # TAB 0: MODELS (New tab for model management)
 # ====================================================
+@st.fragment(run_every="1s")
+def display():
+    st.write("Select a model to view details:")
+    models = get_all_models()  
+    for model in models:
+        status_indicator = {
+            "completed": "✅",
+            "in_progress": "🔄",
+            "cancelled": "❌",
+            "failed": "⚠️",
+            "initialized": "🔍",
+        }.get(model.get("training_status", ""), "")
+
+        progress = model.get("training_progress", 0)
+        progress_str = (
+            f" - {int(progress * 100)}%"
+            if model.get("training_status") == "in_progress"
+            else ""
+        )
+        if st.button(
+            f"{status_indicator} {model['name']}{progress_str}",
+            key=f"model_{model['_id']}",
+        ):
+            st.session_state.active_model_id = str(model["_id"])
+            st.rerun()  # Force the full script to re-run
+
+
 with tabs[0]:
     st.subheader("Model Management")
     st.info(
@@ -130,27 +157,7 @@ with tabs[0]:
         if not all_models:
             st.info("No models found. Create a new model to get started.")
         else:
-            st.write("Select a model to view details:")
-            for model in all_models:
-                status_indicator = {
-                    "completed": "✅",
-                    "in_progress": "🔄",
-                    "cancelled": "❌",
-                    "failed": "⚠️",
-                    "initialized": "🔍",
-                }.get(model.get("training_status", ""), "")
-
-                progress = model.get("training_progress", 0)
-                progress_str = (
-                    f" - {int(progress * 100)}%"
-                    if model.get("training_status") == "in_progress"
-                    else ""
-                )
-                if st.button(
-                    f"{status_indicator} {model['name']}{progress_str}",
-                    key=f"model_{model['_id']}",
-                ):
-                    st.session_state.active_model_id = str(model["_id"])
+            display()
 
         st.write("### Create New Model")
         if st.button("➕ Create New Model", key="new_model_btn"):
