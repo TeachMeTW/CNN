@@ -8,3 +8,4 @@ python-dotenv
 optuna==3.3.0
 seaborn==0.13.0
 pymongo
+streamlit-autorefresh==1.0.1
